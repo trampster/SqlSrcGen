@@ -1,0 +1,1 @@
+CREATE TABLE contact (name Text, email Text);
