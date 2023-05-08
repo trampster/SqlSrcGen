@@ -36,12 +36,27 @@ using SqlSrcGen;
 // var sqlite = new SqlSrcGen.Runtime.Sqlite("otherDatabase.sql");
 // sqlite.CreateContactTable();
 
-//sqlite.Query("CREATE TABLE contact (name Text, email Text);");
+//sqlite.Query("CREATE TABLE contact (name Text, email Text);");  
 
-var database = new Database("database.sql");
+string databaseName = "database.sql";
+if (File.Exists(databaseName))
+{
+    File.Delete(databaseName);
+}
+
+var database = new Database(databaseName);
 database.CreateContactTable();
 
-Console.WriteLine("created table");
+database.InsertContact(new Contact() { Name = "Bob", Email = "bob@marley.com", Age = 12 });
+
+var list = new List<Contact>();
+database.AllContacts(list);
+
+foreach (var contact in list)
+{
+    Console.WriteLine($"Name: {contact.Name} Email: {contact.Email} Age: {contact.Age}");
+}
+
 //List<Contact> contacts = new List<Contact>();
 //database.AllContacts(contacts);
 

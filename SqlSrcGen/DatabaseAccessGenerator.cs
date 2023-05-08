@@ -183,10 +183,23 @@ public class DatabaseAccessGenerator
         builder.AppendLine("            row = list[index];");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine($"        row!.Name = Marshal.PtrToStringUni(SqliteNativeMethods.sqlite3_column_text16({statementPointerFieldName}, 0))!;");
-        builder.AppendLine($"        row!.Email = Marshal.PtrToStringUni(SqliteNativeMethods.sqlite3_column_text16({statementPointerFieldName}, 1))!;");
-        builder.AppendLine("        list.Add(row);");
+
+        int columnIndex = 0;
+        foreach (var column in table.Columns)
+        {
+            switch (column.TypeAffinity)
+            {
+                case TypeAffinity.TEXT:
+                    builder.AppendLine($"        row!.{column.CSharpName} = Marshal.PtrToStringUni(SqliteNativeMethods.sqlite3_column_text16({statementPointerFieldName}, {columnIndex}))!;");
+                    break;
+                case TypeAffinity.INTEGER:
+                    builder.AppendLine($"        row!.{column.CSharpName} = SqliteNativeMethods.sqlite3_column_int64({statementPointerFieldName}, {columnIndex});");
+                    break;
+            }
+            columnIndex++;
+        }
         builder.AppendLine($"        result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
+        builder.AppendLine($"        index++;");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    if (result != Result.Done)");
@@ -269,7 +282,15 @@ public class DatabaseAccessGenerator
         int columnParameterNumber = 1;
         foreach (var column in table.Columns)
         {
-            builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_text16({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, -1, SqliteNativeMethods.SQLITE_TRANSIENT);");
+            switch (column.TypeAffinity)
+            {
+                case TypeAffinity.TEXT:
+                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_text16({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, -1, SqliteNativeMethods.SQLITE_TRANSIENT);");
+                    break;
+                case TypeAffinity.INTEGER:
+                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_int64({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName});");
+                    break;
+            }
             columnParameterNumber++;
         }
 

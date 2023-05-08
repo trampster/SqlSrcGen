@@ -127,7 +127,15 @@ public class SqlGenerator : ISourceGenerator
 
             (string name, string type) = ParseColumnDefinition(consumed);
 
-            var column = new Column() { SqlName = name, SqlType = type, CSharpName = ToDotnetName(name), CSharpType = ToDotnetType(type) };
+            var typeAffinity = ToTypeAffinity(type);
+            var column = new Column()
+            {
+                SqlName = name,
+                SqlType = type,
+                CSharpName = ToDotnetName(name),
+                CSharpType = ToDotnetType(typeAffinity),
+                TypeAffinity = typeAffinity
+            };
             table.Columns.Add(column);
 
             if (found == ")")
@@ -150,15 +158,43 @@ public class SqlGenerator : ISourceGenerator
         return tokens.Slice(1);
     }
 
-    string ToDotnetType(string sqlType)
+    TypeAffinity ToTypeAffinity(string sqlType)
     {
-        switch (sqlType.ToLowerInvariant())
+        sqlType = sqlType.ToUpperInvariant();
+        if (sqlType.Contains("INT"))
         {
-            case "text":
-                return "string";
-            default:
-                throw new InvalidSqlException($"Unrecongized sql type {sqlType}");
+            return TypeAffinity.INTEGER;
         }
+
+        if (sqlType.Contains("CHAR") || sqlType.Contains("CLOB") || sqlType.Contains("TEXT"))
+        {
+            return TypeAffinity.TEXT;
+        }
+
+        if (sqlType.Contains("BLOB"))
+        {
+            return TypeAffinity.BLOB;
+        }
+
+        if (sqlType.Contains("REAL") || sqlType.Contains("FLOA") || sqlType.Contains("DOUB"))
+        {
+            return TypeAffinity.REAL;
+        }
+
+        return TypeAffinity.NUMERIC;
+    }
+
+    string ToDotnetType(TypeAffinity typeAffinity)
+    {
+        return typeAffinity switch
+        {
+            TypeAffinity.INTEGER => "long",
+            TypeAffinity.TEXT => "string",
+            TypeAffinity.BLOB => "byte[]",
+            TypeAffinity.REAL => "dobule",
+            TypeAffinity.NUMERIC => "object",
+            _ => "object"
+        };
     }
 
     string ToDotnetName(string name)

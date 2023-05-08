@@ -1,3 +1,4 @@
 Benchmarks/BenchmarkDotNet.Artifacts/*
 bin
 obj
+database.sql
