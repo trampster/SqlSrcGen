@@ -195,6 +195,9 @@ public class DatabaseAccessGenerator
                 case TypeAffinity.INTEGER:
                     builder.AppendLine($"        row!.{column.CSharpName} = SqliteNativeMethods.sqlite3_column_int64({statementPointerFieldName}, {columnIndex});");
                     break;
+                case TypeAffinity.REAL:
+                    builder.AppendLine($"        row!.{column.CSharpName} = SqliteNativeMethods.sqlite3_column_double({statementPointerFieldName}, {columnIndex});");
+                    break;
             }
             columnIndex++;
         }
@@ -289,6 +292,9 @@ public class DatabaseAccessGenerator
                     break;
                 case TypeAffinity.INTEGER:
                     builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_int64({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName});");
+                    break;
+                case TypeAffinity.REAL:
+                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_double({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName});");
                     break;
             }
             columnParameterNumber++;
