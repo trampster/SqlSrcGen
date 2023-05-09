@@ -1,1 +1,1 @@
-CREATE TABLE contact (name Text, email Text, age Integer, height Real);
+CREATE TABLE contact (name Text, email Text, age Integer, height Real, privateKey Blob);

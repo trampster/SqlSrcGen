@@ -198,6 +198,15 @@ public class DatabaseAccessGenerator
                 case TypeAffinity.REAL:
                     builder.AppendLine($"        row!.{column.CSharpName} = SqliteNativeMethods.sqlite3_column_double({statementPointerFieldName}, {columnIndex});");
                     break;
+                case TypeAffinity.BLOB:
+                    builder.AppendLine($"        IntPtr blogPtr = SqliteNativeMethods.sqlite3_column_blob({statementPointerFieldName}, {columnIndex});");
+                    builder.AppendLine($"        int length = SqliteNativeMethods.sqlite3_column_bytes({statementPointerFieldName}, {columnIndex});");
+                    builder.AppendLine($"        if(row!.{column.CSharpName}.Length != length)");
+                    builder.AppendLine($"        {{");
+                    builder.AppendLine($"            row!.{column.CSharpName} = new byte[length];");
+                    builder.AppendLine($"        }}");
+                    builder.AppendLine($"        Marshal.Copy(blogPtr, row!.{column.CSharpName}, 0, length);");
+                    break;
             }
             columnIndex++;
         }
@@ -295,6 +304,9 @@ public class DatabaseAccessGenerator
                     break;
                 case TypeAffinity.REAL:
                     builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_double({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName});");
+                    break;
+                case TypeAffinity.BLOB:
+                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_blob({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, row.{column.CSharpName}.Length, SqliteNativeMethods.SQLITE_TRANSIENT);");
                     break;
             }
             columnParameterNumber++;

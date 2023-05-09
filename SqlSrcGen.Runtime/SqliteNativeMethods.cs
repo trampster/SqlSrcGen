@@ -43,14 +43,23 @@ public static class SqliteNativeMethods
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern double sqlite3_column_double(IntPtr statementPtr, int index);
 
+    [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr sqlite3_column_blob(IntPtr statementPtr, int index);
+
+    [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_column_bytes(IntPtr statementPtr, int index);
+
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-    public static extern int sqlite3_bind_text16(IntPtr statementPtr, int index, [MarshalAs(UnmanagedType.LPWStr)] string val, int n, IntPtr free);
+    public static extern int sqlite3_bind_text16(IntPtr statementPtr, int index, [MarshalAs(UnmanagedType.LPWStr)] string val, int length, IntPtr free);
 
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern int sqlite3_bind_int64(IntPtr statementPtr, int index, long value);
 
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern int sqlite3_bind_double(IntPtr statementPtr, int index, double value);
+
+    [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_bind_blob(IntPtr statementPtr, int index, byte[] blob, int length, IntPtr free);
 
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern Result sqlite3_finalize(IntPtr statementPtr);

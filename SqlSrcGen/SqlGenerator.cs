@@ -93,6 +93,10 @@ public class SqlGenerator : ISourceGenerator
                 {
                     builder.Append(" = \"\";");
                 }
+                if (column.CSharpType == "byte[]")
+                {
+                    builder.Append(" = new byte[0];");
+                }
                 builder.AppendLine();
             }
             builder.AppendLine("}");

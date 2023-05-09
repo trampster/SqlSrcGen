@@ -111,7 +111,7 @@ public class Sqlite : IDisposable
 
             contact!.Name = Marshal.PtrToStringUni(SqliteNativeMethods.sqlite3_column_text16(_queryContactStatement, 0))!;
             contact!.Email = Marshal.PtrToStringUni(SqliteNativeMethods.sqlite3_column_text16(_queryContactStatement, 1))!;
-            list.Add(contact);
+
             result = SqliteNativeMethods.sqlite3_step(_queryContactStatement);
         }
 
