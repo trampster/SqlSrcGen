@@ -12,6 +12,15 @@ public enum Result
     Done = 101
 }
 
+public enum SqliteDataType
+{
+    Integer = 1,
+    Float = 2,
+    Blob = 4,
+    Null = 5,
+    Text = 3
+}
+
 public static class SqliteNativeMethods
 {
     const string SqliteLib = "/usr/lib/x86_64-linux-gnu/libsqlite3.so.0.8.6";
@@ -42,6 +51,9 @@ public static class SqliteNativeMethods
 
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern double sqlite3_column_double(IntPtr statementPtr, int index);
+
+    [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern SqliteDataType sqlite3_column_type(IntPtr statementPtr, int index);
 
     [DllImport(SqliteLib, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr sqlite3_column_blob(IntPtr statementPtr, int index);

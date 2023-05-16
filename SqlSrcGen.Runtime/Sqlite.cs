@@ -81,7 +81,7 @@ public class Sqlite : IDisposable
     static readonly byte[] _queryAllContactsBytes = UTF8Encoding.UTF8.GetBytes("SELECT * FROM contact;");
     IntPtr _queryContactStatement = IntPtr.Zero;
 
-    public void AllContacts(string query, List<Contact> list)
+    public void AllContacts(string query, List<Contact1> list)
     {
         if (_queryContactStatement == IntPtr.Zero)
         {
@@ -97,10 +97,10 @@ public class Sqlite : IDisposable
         int index = 0;
         while (result == Result.Row)
         {
-            Contact? contact = null;
+            Contact1? contact = null;
             if (index >= list.Count)
             {
-                contact = new Contact();
+                contact = new Contact1();
                 Console.WriteLine("Making new contact");
                 list.Add(contact);
             }
@@ -131,7 +131,7 @@ public class Sqlite : IDisposable
     static readonly byte[] InsertContactQueryBytes = UTF8Encoding.UTF8.GetBytes("INSERT INTO contact (name, email) VALUES (?, ?);");
     IntPtr _insertContactStatementPtr = IntPtr.Zero;
 
-    public void InsertContact(Contact contact)
+    public void InsertContact(Contact1 contact)
     {
         if (_insertContactStatementPtr == IntPtr.Zero)
         {

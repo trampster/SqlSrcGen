@@ -196,8 +196,8 @@ public class SqlGenerator : ISourceGenerator
             TypeAffinity.TEXT => "string",
             TypeAffinity.BLOB => "byte[]",
             TypeAffinity.REAL => "double",
-            TypeAffinity.NUMERIC => "object",
-            _ => "object"
+            TypeAffinity.NUMERIC => "Numeric",
+            _ => "Numeric"
         };
     }
 

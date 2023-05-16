@@ -1,6 +1,6 @@
 namespace SqlSrcGen.Runtime;
 
-public class Contact
+public class Contact1
 {
     public string Name
     {

@@ -207,6 +207,9 @@ public class DatabaseAccessGenerator
                     builder.AppendLine($"        }}");
                     builder.AppendLine($"        Marshal.Copy(blogPtr, row!.{column.CSharpName}, 0, length);");
                     break;
+                case TypeAffinity.NUMERIC:
+                    builder.AppendLine($"        row!.{column.CSharpName} = SqliteNumericSqliteMethods.Read({statementPointerFieldName}, {columnIndex});");
+                    break;
             }
             columnIndex++;
         }
@@ -307,6 +310,9 @@ public class DatabaseAccessGenerator
                     break;
                 case TypeAffinity.BLOB:
                     builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_blob({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, row.{column.CSharpName}.Length, SqliteNativeMethods.SQLITE_TRANSIENT);");
+                    break;
+                case TypeAffinity.NUMERIC:
+                    builder.AppendLine($"    SqliteNumericSqliteMethods.Write({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName});");
                     break;
             }
             columnParameterNumber++;
