@@ -14,8 +14,8 @@ public class SqlGenerator : ISourceGenerator
 
 	public SqlGenerator()
 	{
-		// while (!System.Diagnostics.Debugger.IsAttached)
-		// 	System.Threading.Thread.Sleep(500);
+		while (!System.Diagnostics.Debugger.IsAttached)
+			System.Threading.Thread.Sleep(500);
 	}
 	public void Execute(GeneratorExecutionContext context)
 	{
@@ -296,6 +296,10 @@ public class SqlGenerator : ISourceGenerator
 		while (text.Length > 0)
 		{
 			text = SkipWhitespace(text, ref position);
+			if (text.Length == 0)
+			{
+				break;
+			}
 			text = ReadToken(text, out Token token, ref position);
 			if (token != null)
 			{
