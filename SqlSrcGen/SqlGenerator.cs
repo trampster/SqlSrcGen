@@ -14,8 +14,8 @@ public class SqlGenerator : ISourceGenerator
 
 	public SqlGenerator()
 	{
-		while (!System.Diagnostics.Debugger.IsAttached)
-			System.Threading.Thread.Sleep(500);
+		// while (!System.Diagnostics.Debugger.IsAttached)
+		// 	System.Threading.Thread.Sleep(500);
 	}
 	public void Execute(GeneratorExecutionContext context)
 	{
