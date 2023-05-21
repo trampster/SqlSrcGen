@@ -76,8 +76,6 @@ public class SqlGenerator : ISourceGenerator
 
 			var code = builder.ToString();
 			context.AddSource($"SqlSchema.g.cs", code);
-
-
 		}
 	}
 
