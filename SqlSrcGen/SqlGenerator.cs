@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 
 namespace SqlSrcGen;
 
@@ -19,6 +20,7 @@ public class SqlGenerator : ISourceGenerator
 	}
 	public void Execute(GeneratorExecutionContext context)
 	{
+
 		var databaseAccessGenerator = new DatabaseAccessGenerator();
 		var additionalFiles = context.AdditionalFiles.Where(at => at.Path.EndsWith(".sql"));
 		if (additionalFiles.Any())
@@ -35,13 +37,38 @@ public class SqlGenerator : ISourceGenerator
 			var databaseInfo = new DatabaseInfo();
 
 			builder.IncreaseIndent();
-			ProcessSqlSchema(additionalFiles.First().GetText().ToString(), databaseInfo);
 
-			GenerateDatabaseObjects(databaseInfo, builder);
+			try
+			{
+				ProcessSqlSchema(additionalFiles.First().GetText().ToString(), databaseInfo);
+				GenerateDatabaseObjects(databaseInfo, builder);
+			}
+			catch (InvalidSqlException exception)
+			{
+				var sqlFile = additionalFiles.First();
+
+				var token = exception.Token;
+
+				context.ReportDiagnostic(
+					Diagnostic.Create(
+						new DiagnosticDescriptor(
+							"SSG0001",
+							"Invalid SQL",
+							exception.Message,
+							"SQL",
+							DiagnosticSeverity.Error,
+							true),
+						Location.Create(sqlFile.Path,
+						TextSpan.FromBounds(token.Position, token.Value.Length + token.Position),
+						new LinePositionSpan(
+							new LinePosition(token.Line, token.CharacterInLine), new LinePosition(token.Line, token.CharacterInLine + token.Value.Length)))));
+				return;
+			}
+
 
 			builder.AppendLine();
-
 			databaseAccessGenerator.Generate(builder, databaseInfo);
+
 
 			builder.DecreaseIndent();
 			//end of namespace
@@ -66,8 +93,7 @@ public class SqlGenerator : ISourceGenerator
 					tokens = ProcessCreateCommand(tokens, databaseInfo);
 					break;
 				default:
-					throw new InvalidProgramException("Unsupported sql command");
-
+					throw new InvalidSqlException("Unsupported sql command", tokens[0]);
 			}
 		}
 	}
@@ -108,8 +134,9 @@ public class SqlGenerator : ISourceGenerator
 		return -1;
 	}
 
-	Span<Token> ProcessCreateCommand(Span<Token> tokens, DatabaseInfo databaseInfo)
+	Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
 	{
+		var tokens = tokensToProcess;
 		if (tokens[1].Value.ToLower() != "table")
 		{
 			throw new InvalidProgramException("Unsupported sql command");
@@ -125,7 +152,7 @@ public class SqlGenerator : ISourceGenerator
 
 		if (tokens[3].Value != "(")
 		{
-			throw new InvalidSqlException($"Missing ( in CREATE TABLE command at position {tokens[3].Position}");
+			throw new InvalidSqlException($"Missing ( in CREATE TABLE command at position {tokens[3].Position}", tokens[3]);
 		}
 
 		tokens = tokens.Slice(4);
@@ -157,12 +184,12 @@ public class SqlGenerator : ISourceGenerator
 				continue;
 			}
 
-			throw new InvalidSqlException("Ran out of tokens while looking for ')' or ',' in CREATE TABLE command");
+			throw new InvalidSqlException("Ran out of tokens while looking for ')' or ',' in CREATE TABLE command", tokensToProcess[tokensToProcess.Length - 1]);
 		}
 
 		if (tokens[0].Value != ";")
 		{
-			throw new InvalidSqlException($"missing ';' at end of CREATE TABLE command at position {tokens[0].Position}");
+			throw new InvalidSqlException($"missing ';' at end of CREATE TABLE command at position {tokens[0].Position}", tokens[0]);
 		}
 
 		return tokens.Slice(1);
@@ -239,7 +266,7 @@ public class SqlGenerator : ISourceGenerator
 	{
 		if (columnDefinition.Length < 2)
 		{
-			throw new InvalidSqlException($"Invalid column definition at position {columnDefinition[columnDefinition.Length - 1].Position}");
+			throw new InvalidSqlException($"Invalid column definition at position {columnDefinition[columnDefinition.Length - 1].Position}", columnDefinition[columnDefinition.Length - 1]);
 		}
 		string name = columnDefinition[0].Value;
 		string type = columnDefinition[1].Value;
@@ -252,12 +279,12 @@ public class SqlGenerator : ISourceGenerator
 				case "not":
 					if (index + 1 > columnDefinition.Length - 1)
 					{
-						throw new InvalidSqlException($"Invalid column constraint at position {token.Position}, did you mean 'not null'?");
+						throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
 					}
 					var next = columnDefinition[index + 1];
 					if (next.Value.ToLowerInvariant() != "null")
 					{
-						throw new InvalidSqlException($"Invalid column constraint at position {token.Position}, did you mean 'not null'?");
+						throw new InvalidSqlException($"Invalid column constraint at position, did you mean 'not null'?", token);
 					}
 					notNull = true;
 					break;
@@ -293,14 +320,16 @@ public class SqlGenerator : ISourceGenerator
 		var tokens = new List<Token>();
 		var text = schema.AsSpan();
 		int position = 0;
+		int lineIndex = 0;
+		int characterInLineIndex = 0;
 		while (text.Length > 0)
 		{
-			text = SkipWhitespace(text, ref position);
+			text = SkipWhitespace(text, ref position, ref lineIndex, ref characterInLineIndex);
 			if (text.Length == 0)
 			{
 				break;
 			}
-			text = ReadToken(text, out Token token, ref position);
+			text = ReadToken(text, out Token token, ref position, ref lineIndex, ref characterInLineIndex);
 			if (token != null)
 			{
 				tokens.Add(token);
@@ -309,7 +338,7 @@ public class SqlGenerator : ISourceGenerator
 		return tokens;
 	}
 
-	ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token read, ref int position)
+	ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
 	{
 		switch (text[0])
 		{
@@ -318,8 +347,9 @@ public class SqlGenerator : ISourceGenerator
 			case ')':
 			case ';':
 				var tokenValue = text.Slice(0, 1).ToString();
-				read = new Token() { Value = tokenValue, Position = position };
+				read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex };
 				position += 1;
+				characterInLineIndex += 1;
 				return text.Slice(1);
 		}
 		for (int index = 0; index < text.Length; index++)
@@ -334,10 +364,15 @@ public class SqlGenerator : ISourceGenerator
 				case '(':
 				case ')':
 				case ';':
-
 					string tokenValue = text.Slice(0, index).ToString();
-					read = new Token() { Value = tokenValue, Position = position };
+					read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex };
 					position += index;
+					characterInLineIndex += index;
+					if (IsNewLine(text.Slice(index)))
+					{
+						lineIndex++;
+						characterInLineIndex = 0;
+					}
 					return text.Slice(index);
 				default:
 					break;
@@ -348,23 +383,32 @@ public class SqlGenerator : ISourceGenerator
 		return Span<char>.Empty;
 	}
 
-	ReadOnlySpan<char> SkipWhitespace(ReadOnlySpan<char> text, ref int position)
+	bool IsNewLine(ReadOnlySpan<char> text)
+	{
+		return text[0] == '\n';
+	}
+
+	ReadOnlySpan<char> SkipWhitespace(ReadOnlySpan<char> text, ref int position, ref int lineIndex, ref int characterInLineIndex)
 	{
 		for (int index = 0; index < text.Length; index++)
 		{
 			switch (text[index])
 			{
+				case '\n':
+					position++;
+					lineIndex++;
+					characterInLineIndex = 0;
+					continue;
 				case ' ':
 				case '\t':
-				case '\n':
 				case '\r':
+					characterInLineIndex++;
+					position++;
 					continue;
 				default:
-					position += index;
 					return text.Slice(index);
 			}
 		}
-		position += text.Length;
 		return Span<char>.Empty;
 	}
 
