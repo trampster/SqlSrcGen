@@ -18,7 +18,7 @@ CREATE TABLE contact (name Text not null, email Text not null);
 
 ```xml
 <ItemGroup>
-	<AdditionalFiles Include="SqlSchema.sql" />
+    <AdditionalFiles Include="SqlSchema.sql" />
 </ItemGroup>
 ```
 3. Do crud operations on the tables
@@ -32,8 +32,8 @@ database.CreateContactTable();
 // insert a record
 database.InsertContact(new Contact() 
 { 
-	Name = "Steve Rogers", 
-	Email = "steve@avengers.com"
+    Name = "Steve Rogers", 
+    Email = "steve@avengers.com"
 });
 
 
