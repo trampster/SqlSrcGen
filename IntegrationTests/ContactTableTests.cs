@@ -131,4 +131,22 @@ public class ContactTableTests
         Assert.That(contacts[1].PrivateKey, Is.EqualTo(tonyContact.PrivateKey));
         Assert.That(contacts[1].Mana, Is.EqualTo(tonyContact.Mana));
     }
+
+    [Test]
+    public void DeleteAll()
+    {
+        // arrange
+        _database!.CreateContactTable();
+
+        _sqliteNetConnection?.Execute("INSERT INTO contact (name, email, age, height, privateKey, mana) VALUES (\"Steve\", \"steve.rogers@avengers.com\", 35, 170.5, X'010203', 24.5)");
+        _sqliteNetConnection?.Execute("INSERT INTO contact (name, email, age, height, privateKey, mana) VALUES (\"Tony\", \"tony.stark@avengers.com\", 40, 185.42, X'010203', \"24.5\")");
+
+        // act
+        _database!.DeleteAllContacts();
+
+        // assert
+        var contacts = _sqliteNetConnection?.Query<SqliteNetContact>("Select * from contact;");
+
+        Assert.That(contacts.Count, Is.EqualTo(0));
+    }
 }

@@ -41,6 +41,7 @@ public class DatabaseAccessGenerator
             GenerateCreateTable(table, builder);
             GenerateGetAll(table, builder);
             GenerateInsert(table, builder);
+            GenerateDeleteAll(table, builder);
         }
 
         builder.DecreaseIndent();
@@ -139,6 +140,49 @@ public class DatabaseAccessGenerator
         builder.AppendLine("        SqliteNativeMethods.sqlite3_finalize(statementPtr);");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+        builder.AppendLine();
+    }
+
+    void GenerateDeleteAll(Table table, SourceBuilder builder)
+    {
+        string deleteAllSqlBytesFieldName = $"_deleteAll{table.CSharpName}sBytes";
+        string query = $"delete from {table.SqlName};";
+        AppendQueryBytesField(builder, deleteAllSqlBytesFieldName, query);
+
+        string statementPointerFieldName = $"_deleteAll{table.CSharpName}sStatement";
+        builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
+        AppendDisposeStatement(statementPointerFieldName);
+
+        builder.AppendLine($"public void DeleteAll{table.CSharpName}s()");
+        builder.AppendLine($"{{");
+
+        builder.AppendLine($"    if({statementPointerFieldName} == IntPtr.Zero)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        var result = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {deleteAllSqlBytesFieldName}, {deleteAllSqlBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
+        builder.AppendLine($"        if (result != Result.Ok)");
+        builder.AppendLine($"        {{");
+        builder.AppendLine($"            throw new SqliteException(\"Failed to prepare sqlite statement {query}\", result);");
+        builder.AppendLine($"        }}");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine();
+        builder.AppendLine($"    var stepResult = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
+        builder.AppendLine();
+        builder.AppendLine($"    if (stepResult != Result.Done)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        throw new SqliteException(\"Failed to execute sqlite statement {table.CreateTable}\", stepResult);");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine();
+
+        builder.AppendLine($"    // reset the statement so it's ready for next time");
+        builder.AppendLine($"    var resetResult = SqliteNativeMethods.sqlite3_reset({statementPointerFieldName});");
+        builder.AppendLine($"    if (resetResult != Result.Ok)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        throw new SqliteException($\"Failed to reset sqlite statement {query}\", resetResult);");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine($"}}");
         builder.AppendLine();
     }
 

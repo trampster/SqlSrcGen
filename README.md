@@ -36,9 +36,12 @@ database.InsertContact(new Contact()
     Email = "steve@avengers.com"
 });
 
-var list = new List<Contact>();
 // query all records in the table
+var list = new List<Contact>();
 database.AllContacts(list);
+
+// delete all rows from table
+database!.DeleteAllContacts();
 ```
 
 # Future Work
