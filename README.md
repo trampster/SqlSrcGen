@@ -36,7 +36,6 @@ database.InsertContact(new Contact()
     Email = "steve@avengers.com"
 });
 
-
 var list = new List<Contact>();
 // query all records in the table
 database.AllContacts(list);
