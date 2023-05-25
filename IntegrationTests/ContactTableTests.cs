@@ -147,6 +147,6 @@ public class ContactTableTests
         // assert
         var contacts = _sqliteNetConnection?.Query<SqliteNetContact>("Select * from contact;");
 
-        Assert.That(contacts.Count, Is.EqualTo(0));
+        Assert.That(contacts!.Count, Is.EqualTo(0));
     }
 }

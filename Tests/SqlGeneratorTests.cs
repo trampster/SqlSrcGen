@@ -243,15 +243,111 @@ public class SqlGeneratorTests
     }
 
     [Test]
-    public void ProcessSqlSchema_InvalidConstraintNot_CreatesTableInfo()
+    public void ProcessSqlSchema_InvalidConstraintNot_ThrowsInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Invalid column constraint, did you mean 'not null'?"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(39));
+        }
+    }
+
+    [Test]
+    public void ProcessSqlSchema_PrimaryKey_ColumnHasPrimaryKeySet()
     {
         // arrange
         var generator = new SqlGenerator();
         var databaseInfo = new DatabaseInfo();
 
         // act
-        Assert.Throws(
-            Is.TypeOf<InvalidSqlException>().And.Message.EqualTo("Invalid column constraint at position 39, did you mean 'not null'?"),
-            () => generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT);", databaseInfo));
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
+        Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].PrimaryKey, Is.EqualTo(true));
+        Assert.That(databaseInfo.Tables[0].Columns[1].PrimaryKey, Is.EqualTo(false));
+    }
+
+    [Test]
+    public void ProcessSqlSchema_TwoPrimaryKeys_ThrowsInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text primary key);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Table already has a primary key"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(56));
+        }
+    }
+
+    [Test]
+    public void ProcessSqlSchema_TwoPrimaryWithoutKey_ThrowsInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Invalid column constraint, did you mean 'primary key'?"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(32));
+        }
+    }
+
+    [Test]
+    public void ProcessSqlSchema_DuplicateColumnName_ThrowsInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text, Name Text);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Column name Name already exists in this table"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(33));
+        }
     }
 }

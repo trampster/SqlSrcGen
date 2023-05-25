@@ -159,18 +159,8 @@ public class SqlGenerator : ISourceGenerator
         {
             tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
 
-            (string name, string type, bool notNull) = ParseColumnDefinition(consumed);
+            var column = ParseColumnDefinition(consumed, table.Columns);
 
-            var typeAffinity = ToTypeAffinity(type);
-            var column = new Column()
-            {
-                SqlName = name,
-                SqlType = type,
-                CSharpName = ToDotnetName(name),
-                CSharpType = ToDotnetType(typeAffinity, notNull),
-                TypeAffinity = typeAffinity,
-                NotNull = notNull
-            };
             table.Columns.Add(column);
 
             if (found == ")")
@@ -260,15 +250,21 @@ public class SqlGenerator : ISourceGenerator
         return builder.ToString();
     }
 
-    (string name, string type, bool notNull) ParseColumnDefinition(Span<Token> columnDefinition)
+    Column ParseColumnDefinition(Span<Token> columnDefinition, IEnumerable<Column> existingColumns)
     {
         if (columnDefinition.Length < 2)
         {
             throw new InvalidSqlException($"Invalid column definition at position {columnDefinition[columnDefinition.Length - 1].Position}", columnDefinition[columnDefinition.Length - 1]);
         }
         string name = columnDefinition[0].Value;
+        if (existingColumns.Any(column => column.SqlName.ToLower() == name.ToLower()))
+        {
+            throw new InvalidSqlException($"Column name {name} already exists in this table", columnDefinition[0]);
+        }
+
         string type = columnDefinition[1].Value;
         bool notNull = false;
+        bool primaryKey = false;
         for (int index = 2; index < columnDefinition.Length; index++)
         {
             var token = columnDefinition[index];
@@ -284,11 +280,41 @@ public class SqlGenerator : ISourceGenerator
                     {
                         throw new InvalidSqlException($"Invalid column constraint at position, did you mean 'not null'?", token);
                     }
+                    index += 1; //we have effectively consume the next one
                     notNull = true;
                     break;
+                case "primary":
+                    if (index + 1 > columnDefinition.Length - 1)
+                    {
+                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
+                    }
+                    var next1 = columnDefinition[index + 1];
+                    if (next1.Value.ToLowerInvariant() != "key")
+                    {
+                        throw new InvalidSqlException($"Invalid column constraint at position, did you mean 'primary key'?", token);
+                    }
+
+                    if (existingColumns.Any(column => column.PrimaryKey))
+                    {
+                        throw new InvalidSqlException($"Table already has a primary key", token);
+                    }
+                    index += 1; //we have effectively consume the next one
+                    primaryKey = true;
+                    break;
+
             }
         }
-        return (name, type, notNull);
+        var typeAffinity = ToTypeAffinity(type);
+        return new Column()
+        {
+            SqlName = name,
+            SqlType = type,
+            CSharpName = ToDotnetName(name),
+            CSharpType = ToDotnetType(typeAffinity, notNull),
+            TypeAffinity = typeAffinity,
+            NotNull = notNull,
+            PrimaryKey = primaryKey
+        };
     }
 
     /// <summary>

@@ -19,6 +19,7 @@ namespace SqlSrcGen
         public string CSharpType { get; set; }
         public TypeAffinity TypeAffinity { get; set; }
         public bool NotNull { get; set; }
+        public bool PrimaryKey { get; set; }
     }
 
     public class Table
