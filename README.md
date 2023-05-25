@@ -1,4 +1,4 @@
-# SqlSrcGen
+![alt text](/Icon/SqlSrcGen.svg) # SqlSrcGen
 SqlSrcGen is a SQL first, reflection free micro ORM for SQLite using c# source generators.
 The class definitions and Object Relational Mappings are created automatically from your SQL CREATE TABLE commands.
 
