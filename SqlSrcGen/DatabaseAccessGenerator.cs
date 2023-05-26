@@ -41,6 +41,10 @@ public class DatabaseAccessGenerator
             GenerateCreateTable(table, builder);
             GenerateGetAll(table, builder);
             GenerateInsert(table, builder);
+            if (table.Columns.Any(column => column.PrimaryKey))
+            {
+                GenerateGet(table, builder);
+            }
             GenerateDeleteAll(table, builder);
         }
 
@@ -194,13 +198,14 @@ public class DatabaseAccessGenerator
         return number;
     }
 
-    void GenerateGetAll(Table table, SourceBuilder builder)
+    void GenerateGet(Table table, SourceBuilder builder)
     {
-        var query = $"SELECT * FROM {table.SqlName};";
-        string getAllSqlBytesFieldName = $"_queryAll{table.CSharpName}sBytes";
-        AppendQueryBytesField(builder, getAllSqlBytesFieldName, query);
+        var primaryKeyColumn = table.Columns.Where(column => column.PrimaryKey).First();
+        var query = $"SELECT * FROM {table.SqlName} WHERE {primaryKeyColumn.SqlName} == ?;";
+        string getSqlBytesFieldName = $"_get{table.CSharpName}Bytes";
+        AppendQueryBytesField(builder, getSqlBytesFieldName, query);
 
-        string statementPointerFieldName = $"_query{table.CSharpName}Statement";
+        string statementPointerFieldName = $"_get{table.CSharpName}Statement";
 
         builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
 
@@ -208,34 +213,64 @@ public class DatabaseAccessGenerator
 
         builder.AppendLine();
 
-        builder.AppendLine($"public void All{table.CSharpName}s(List<{table.CSharpName}> list)");
+        builder.AppendLine($"public bool Get{table.CSharpName}({table.CSharpName} row, {primaryKeyColumn.CSharpType} primaryKeyValue)");
         builder.AppendLine("{");
         builder.AppendLine($"    if ({statementPointerFieldName} == IntPtr.Zero)");
         builder.AppendLine("    {");
-        builder.AppendLine($"        var prepareResult = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {getAllSqlBytesFieldName}, {getAllSqlBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
+        builder.AppendLine($"        var prepareResult = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {getSqlBytesFieldName}, {getSqlBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
         builder.AppendLine("        if (prepareResult != Result.Ok)");
         builder.AppendLine("        {");
         builder.AppendLine($"            throw new SqliteException($\"Failed to prepare sqlite statement {query}\", prepareResult);");
         builder.AppendLine("        }");
         builder.AppendLine("    }");
         builder.AppendLine();
+
+        BindValue(primaryKeyColumn, builder, statementPointerFieldName, 1, "primaryKeyValue");
+
         builder.AppendLine($"    var result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
         builder.AppendLine();
-        builder.AppendLine("    int index = 0;");
-        builder.AppendLine("    while (result == Result.Row)");
+
+        builder.AppendLine("    try");
         builder.AppendLine("    {");
-        builder.AppendLine($"        {table.CSharpName}? row = null;");
-        builder.AppendLine("        if (index >= list.Count)");
-        builder.AppendLine("        {");
-        builder.AppendLine($"            row = new {table.CSharpName}();");
-        builder.AppendLine("            list.Add(row);");
-        builder.AppendLine("        }");
-        builder.AppendLine("        else");
-        builder.AppendLine("        {");
-        builder.AppendLine("            row = list[index];");
-        builder.AppendLine("        }");
+        builder.IncreaseIndent();
+
+        builder.AppendLine("    if (result == Result.Row)");
+        builder.AppendLine("    {");
         builder.AppendLine();
 
+        GenerateReadRow(table, builder, statementPointerFieldName);
+
+        builder.AppendLine("        return true;");
+
+        builder.AppendLine("    }");
+        builder.AppendLine("    else if(result == Result.Done)");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        return false;");
+        builder.AppendLine("    }");
+        builder.AppendLine("    else");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        throw new SqliteException($\"Failed to run query {query}\", result);");
+        builder.AppendLine("    }");
+
+        builder.AppendLine();
+
+        builder.DecreaseIndent();
+        builder.AppendLine("    }");
+        builder.AppendLine("    finally");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        // reset the statement so it's ready for next time");
+        builder.AppendLine($"        result = SqliteNativeMethods.sqlite3_reset({statementPointerFieldName});");
+        builder.AppendLine($"        if (result != Result.Ok)");
+        builder.AppendLine($"        {{");
+        builder.AppendLine($"            throw new SqliteException($\"Failed to reset sqlite statement {query}\", result);");
+        builder.AppendLine($"        }}");
+        builder.AppendLine($"    }}");
+        builder.AppendLine($"}}");
+        builder.AppendLine();
+    }
+
+    void GenerateReadRow(Table table, SourceBuilder builder, string statementPointerFieldName)
+    {
         int columnIndex = 0;
         foreach (var column in table.Columns)
         {
@@ -317,6 +352,57 @@ public class DatabaseAccessGenerator
             }
             columnIndex++;
         }
+    }
+
+    void GenerateGetAll(Table table, SourceBuilder builder)
+    {
+        var query = $"SELECT * FROM {table.SqlName};";
+        string getAllSqlBytesFieldName = $"_queryAll{table.CSharpName}sBytes";
+        AppendQueryBytesField(builder, getAllSqlBytesFieldName, query);
+
+        string statementPointerFieldName = $"_query{table.CSharpName}Statement";
+
+        builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
+
+        AppendDisposeStatement(statementPointerFieldName);
+
+        builder.AppendLine();
+
+        builder.AppendLine($"public void All{table.CSharpName}s(List<{table.CSharpName}> list)");
+        builder.AppendLine("{");
+        builder.AppendLine($"    if ({statementPointerFieldName} == IntPtr.Zero)");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        var prepareResult = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {getAllSqlBytesFieldName}, {getAllSqlBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
+        builder.AppendLine("        if (prepareResult != Result.Ok)");
+        builder.AppendLine("        {");
+        builder.AppendLine($"            throw new SqliteException($\"Failed to prepare sqlite statement {query}\", prepareResult);");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine($"    var result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
+
+        builder.AppendLine("    try");
+        builder.AppendLine("    {");
+        builder.IncreaseIndent();
+
+        builder.AppendLine();
+        builder.AppendLine("    int index = 0;");
+        builder.AppendLine("    while (result == Result.Row)");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        {table.CSharpName}? row = null;");
+        builder.AppendLine("        if (index >= list.Count)");
+        builder.AppendLine("        {");
+        builder.AppendLine($"            row = new {table.CSharpName}();");
+        builder.AppendLine("            list.Add(row);");
+        builder.AppendLine("        }");
+        builder.AppendLine("        else");
+        builder.AppendLine("        {");
+        builder.AppendLine("            row = list[index];");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+
+        GenerateReadRow(table, builder, statementPointerFieldName);
+
         builder.AppendLine($"        result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
         builder.AppendLine($"        index++;");
         builder.AppendLine("    }");
@@ -326,13 +412,18 @@ public class DatabaseAccessGenerator
         builder.AppendLine($"        throw new SqliteException($\"Failed to execute sqlite statement {query}\", result);");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    // reset the statement so it's ready for next time");
-        builder.AppendLine($"    result = SqliteNativeMethods.sqlite3_reset({statementPointerFieldName});");
-        builder.AppendLine("    if (result != Result.Ok)");
-        builder.AppendLine("    {");
-        builder.AppendLine($"        throw new SqliteException($\"Failed to reset sqlite statement {query}\", result);");
+        builder.DecreaseIndent();
         builder.AppendLine("    }");
-        builder.AppendLine("}");
+        builder.AppendLine("    finally");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        // reset the statement so it's ready for next time");
+        builder.AppendLine($"        result = SqliteNativeMethods.sqlite3_reset({statementPointerFieldName});");
+        builder.AppendLine($"        if (result != Result.Ok)");
+        builder.AppendLine($"        {{");
+        builder.AppendLine($"            throw new SqliteException($\"Failed to reset sqlite statement {query}\", result);");
+        builder.AppendLine($"        }}");
+        builder.AppendLine($"    }}");
+        builder.AppendLine($"}}");
         builder.AppendLine();
     }
 
@@ -401,41 +492,7 @@ public class DatabaseAccessGenerator
         int columnParameterNumber = 1;
         foreach (var column in table.Columns)
         {
-            string extraValueAccessor = "";
-            if (!column.NotNull)
-            {
-                builder.AppendLine($"    if(row.{column.CSharpName} == null)");
-                builder.AppendLine("    {");
-                builder.AppendLine($"        SqliteNativeMethods.sqlite3_bind_null({statementPointerFieldName}, {columnParameterNumber});");
-                builder.AppendLine("    }");
-                builder.AppendLine("    else");
-                builder.AppendLine("    {");
-                builder.IncreaseIndent();
-                extraValueAccessor = ".Value";
-            }
-            switch (column.TypeAffinity)
-            {
-                case TypeAffinity.TEXT:
-                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_text16({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, -1, SqliteNativeMethods.SQLITE_TRANSIENT);");
-                    break;
-                case TypeAffinity.INTEGER:
-                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_int64({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}{extraValueAccessor});");
-                    break;
-                case TypeAffinity.REAL:
-                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_double({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}{extraValueAccessor});");
-                    break;
-                case TypeAffinity.BLOB:
-                    builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_blob({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}, row.{column.CSharpName}.Length, SqliteNativeMethods.SQLITE_TRANSIENT);");
-                    break;
-                case TypeAffinity.NUMERIC:
-                    builder.AppendLine($"    SqliteNumericSqliteMethods.Write({statementPointerFieldName}, {columnParameterNumber}, row.{column.CSharpName}{extraValueAccessor});");
-                    break;
-            }
-            if (!column.NotNull)
-            {
-                builder.DecreaseIndent();
-                builder.AppendLine("    }");
-            }
+            BindValue(column, builder, statementPointerFieldName, columnParameterNumber, $"row.{column.CSharpName}");
             columnParameterNumber++;
         }
 
@@ -452,5 +509,44 @@ public class DatabaseAccessGenerator
 
         builder.AppendLine("}");
         builder.AppendLine();
+    }
+
+    void BindValue(Column column, SourceBuilder builder, string statementPointerFieldName, int columnParameterNumber, string valueGetter)
+    {
+        string extraValueAccessor = "";
+        if (!column.NotNull)
+        {
+            builder.AppendLine($"    if({valueGetter} == null)");
+            builder.AppendLine("    {");
+            builder.AppendLine($"        SqliteNativeMethods.sqlite3_bind_null({statementPointerFieldName}, {columnParameterNumber});");
+            builder.AppendLine("    }");
+            builder.AppendLine("    else");
+            builder.AppendLine("    {");
+            builder.IncreaseIndent();
+            extraValueAccessor = ".Value";
+        }
+        switch (column.TypeAffinity)
+        {
+            case TypeAffinity.TEXT:
+                builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_text16({statementPointerFieldName}, {columnParameterNumber}, {valueGetter}, -1, SqliteNativeMethods.SQLITE_TRANSIENT);");
+                break;
+            case TypeAffinity.INTEGER:
+                builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_int64({statementPointerFieldName}, {columnParameterNumber}, {valueGetter}{extraValueAccessor});");
+                break;
+            case TypeAffinity.REAL:
+                builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_double({statementPointerFieldName}, {columnParameterNumber}, {valueGetter}{extraValueAccessor});");
+                break;
+            case TypeAffinity.BLOB:
+                builder.AppendLine($"    SqliteNativeMethods.sqlite3_bind_blob({statementPointerFieldName}, {columnParameterNumber}, {valueGetter}, {valueGetter}.Length, SqliteNativeMethods.SQLITE_TRANSIENT);");
+                break;
+            case TypeAffinity.NUMERIC:
+                builder.AppendLine($"    SqliteNumericSqliteMethods.Write({statementPointerFieldName}, {columnParameterNumber}, {valueGetter}{extraValueAccessor});");
+                break;
+        }
+        if (!column.NotNull)
+        {
+            builder.DecreaseIndent();
+            builder.AppendLine("    }");
+        }
     }
 }

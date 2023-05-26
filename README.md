@@ -40,6 +40,10 @@ database.InsertContact(new Contact()
 var list = new List<Contact>();
 database.AllContacts(list);
 
+// get row via primary key, (only generated for tables with a primary key)
+var contact = new Contact();
+bool found = database.GetContact(contact, contact);
+
 // delete all rows from table
 database!.DeleteAllContacts();
 ```

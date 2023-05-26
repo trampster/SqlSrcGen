@@ -16,7 +16,7 @@ public class SqlGenerator : ISourceGenerator
     public SqlGenerator()
     {
         // while (!System.Diagnostics.Debugger.IsAttached)
-        // 	System.Threading.Thread.Sleep(500);
+        //     System.Threading.Thread.Sleep(500);
     }
     public void Execute(GeneratorExecutionContext context)
     {
@@ -102,6 +102,7 @@ public class SqlGenerator : ISourceGenerator
         {
             builder.AppendLine($"public record {table.CSharpName}");
             builder.AppendLine("{");
+            builder.IncreaseIndent();
 
             foreach (var column in table.Columns)
             {
@@ -116,6 +117,7 @@ public class SqlGenerator : ISourceGenerator
                 }
                 builder.AppendLine();
             }
+            builder.DecreaseIndent();
             builder.AppendLine("}");
         }
     }
