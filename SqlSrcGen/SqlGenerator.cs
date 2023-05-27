@@ -100,6 +100,10 @@ public class SqlGenerator : ISourceGenerator
     {
         foreach (var table in databaseInfo.Tables)
         {
+            if (table.Tempory)
+            {
+                continue;
+            }
             builder.AppendLine($"public record {table.CSharpName}");
             builder.AppendLine("{");
             builder.IncreaseIndent();
@@ -134,28 +138,61 @@ public class SqlGenerator : ISourceGenerator
         return -1;
     }
 
+    void AssertEnoughTokens(Span<Token> tokens, int index)
+    {
+        if (tokens.Length == 0)
+        {
+            throw new InvalidSqlException("Ran out of tokens to parse command.", null);
+        }
+        if (index > tokens.Length - 1)
+        {
+            throw new InvalidSqlException("Ran out of tokens to parse command.", tokens[tokens.Length - 1]);
+        }
+    }
+
     Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
     {
         var tokens = tokensToProcess;
-        if (tokens[1].Value.ToLower() != "table")
+        bool isTemp = false;
+
+        AssertEnoughTokens(tokensToProcess, 1);
+        int index = 1;
+        switch (tokens[1].Value.ToLower())
         {
-            throw new InvalidProgramException("Unsupported sql command");
+            case "table":
+                index += 1;
+                break;
+            case "temp":
+            case "tempory":
+                AssertEnoughTokens(tokensToProcess, 2);
+                if (tokens[2].Value.ToLower() != "table")
+                {
+                    throw new InvalidSqlException("Expected 'table'", tokens[2]);
+                }
+                index += 2;
+                isTemp = true;
+                break;
+            default:
+                throw new InvalidSqlException("Invalid token expected table, temp or tempory", tokens[1]);
         }
 
-        string tableName = tokens[2].Value;
+        string tableName = tokens[index].Value;
+        index++;
 
         var table = new Table();
         table.SqlName = tableName;
         table.CSharpName = ToDotnetName(tableName);
         table.CreateTable = string.Join(" ", tokens.Slice(0, IndexOf(tokens, ";") + 1).ToArray().Select(u => u.Value).ToArray());
+        table.Tempory = isTemp;
         databaseInfo.Tables.Add(table);
 
-        if (tokens[3].Value != "(")
+        if (tokens[index].Value != "(")
         {
             throw new InvalidSqlException($"Missing ( in CREATE TABLE command at position {tokens[3].Position}", tokens[3]);
         }
+        index++;
 
-        tokens = tokens.Slice(4);
+        tokens = tokens.Slice(index);
 
         while (true)
         {

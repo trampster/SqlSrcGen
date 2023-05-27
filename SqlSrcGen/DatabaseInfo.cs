@@ -33,6 +33,7 @@ namespace SqlSrcGen
         } = new List<Column>();
 
         public string CreateTable { get; set; } = "";
+        public bool Tempory { get; set; }
     }
 
     public class DatabaseInfo

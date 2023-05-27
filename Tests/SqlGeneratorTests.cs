@@ -350,4 +350,36 @@ public class SqlGeneratorTests
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(33));
         }
     }
+
+    [TestCase("TEMP")]
+    [TestCase("temp")]
+    [TestCase("TEMPORY")]
+    [TestCase("tempory")]
+    public void ProcessSqlSchema_Tempory_TemporySet(string tempTokenName)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE {tempTokenName} TABLE contact (name Text);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables.First().Tempory, Is.True);
+        Assert.That(databaseInfo.Tables.First().Columns[0].SqlName, Is.EqualTo("name"));
+    }
+
+    [Test]
+    public void ProcessSqlSchema_NotTempory_TemporyNotSet()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables.First().Tempory, Is.False);
+    }
 }
