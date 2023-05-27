@@ -382,4 +382,45 @@ public class SqlGeneratorTests
         // assert
         Assert.That(databaseInfo.Tables.First().Tempory, Is.False);
     }
+
+    [Test]
+    public void ProcessSqlSchema_IfNotExists_Parsed()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE TABLE IF NOT EXISTS contact (name Text);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
+        Assert.That(databaseInfo.Tables.First().Columns[0].SqlName, Is.EqualTo("name"));
+    }
+
+    [TestCase("IF")]
+    [TestCase("if")]
+    [TestCase("IF NOT")]
+    [TestCase("if not")]
+    public void ProcessSqlSchema_InvalidIfNotExists_ThrowInvalidSqlException(string invalidIfNotExists)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema($"CREATE TABLE {invalidIfNotExists} contact (name Text);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Did you mean 'if not exists'?"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
+        }
+    }
 }

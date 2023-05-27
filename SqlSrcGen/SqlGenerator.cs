@@ -150,6 +150,12 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
+    void Increment(ref int index, int amount, Span<Token> tokens)
+    {
+        AssertEnoughTokens(tokens, index + amount);
+        index += amount;
+    }
+
     Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
     {
         var tokens = tokensToProcess;
@@ -169,19 +175,37 @@ public class SqlGenerator : ISourceGenerator
                 {
                     throw new InvalidSqlException("Expected 'table'", tokens[2]);
                 }
-                index += 2;
+                Increment(ref index, 2, tokensToProcess);
                 isTemp = true;
                 break;
             default:
                 throw new InvalidSqlException("Invalid token expected table, temp or tempory", tokens[1]);
         }
 
-        string tableName = tokens[index].Value;
-        index++;
-
         var table = new Table();
+
+        switch (tokens[index].Value.ToLower())
+        {
+            case "if":
+                AssertEnoughTokens(tokens, index + 2);
+                if (tokens[index + 1].Value.ToLower() == "not" && tokens[index + 2].Value.ToLower() == "exists")
+                {
+                    Increment(ref index, 3, tokensToProcess);
+                }
+                else
+                {
+                    throw new InvalidSqlException($"Did you mean 'if not exists'?", tokens[index]);
+                }
+                break;
+            default:
+                break;
+        }
+
+        string tableName = tokens[index].Value;
         table.SqlName = tableName;
         table.CSharpName = ToDotnetName(tableName);
+        Increment(ref index, 1, tokensToProcess);
+
         table.CreateTable = string.Join(" ", tokens.Slice(0, IndexOf(tokens, ";") + 1).ToArray().Select(u => u.Value).ToArray());
         table.Tempory = isTemp;
         databaseInfo.Tables.Add(table);
@@ -190,7 +214,7 @@ public class SqlGenerator : ISourceGenerator
         {
             throw new InvalidSqlException($"Missing ( in CREATE TABLE command at position {tokens[3].Position}", tokens[3]);
         }
-        index++;
+        Increment(ref index, 1, tokensToProcess);
 
         tokens = tokens.Slice(index);
 
