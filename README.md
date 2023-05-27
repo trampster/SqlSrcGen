@@ -11,7 +11,7 @@ The class definitions and Object Relational Mappings are created automatically f
 ## Getting Started
 1. Create a .sql file in your project which includes the CREATE TABLE SQL commands defining your database.
 ```sql
-CREATE TABLE contact (name Text not null, email Text not null);
+CREATE TABLE contact (name Text not null primary key, email Text not null);
 ```
 
 2. Include that .sql file as AdditionalFiles in your .csproj
@@ -46,6 +46,9 @@ bool found = database.GetContact(contact, contact);
 
 // delete all rows from table
 database!.DeleteAllContacts();
+
+// delete a row vis primary key (only generated for tables with a primary key)
+database!.DeleteContact("Steve Rogers");
 ```
 
 ## Future Work

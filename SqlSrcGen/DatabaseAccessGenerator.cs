@@ -44,6 +44,7 @@ public class DatabaseAccessGenerator
             if (table.Columns.Any(column => column.PrimaryKey))
             {
                 GenerateGet(table, builder);
+                GenerateDelete(table, builder);
             }
             GenerateDeleteAll(table, builder);
         }
@@ -144,6 +145,54 @@ public class DatabaseAccessGenerator
         builder.AppendLine("        SqliteNativeMethods.sqlite3_finalize(statementPtr);");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+        builder.AppendLine();
+    }
+
+    void GenerateDelete(Table table, SourceBuilder builder)
+    {
+        var primaryKeyColumn = table.Columns.Where(column => column.PrimaryKey).First();
+
+        string deleteAllSqlBytesFieldName = $"_delete{table.CSharpName}Bytes";
+        string query = $"delete from {table.SqlName} where {primaryKeyColumn.SqlName} == ?;";
+        AppendQueryBytesField(builder, deleteAllSqlBytesFieldName, query);
+
+        string statementPointerFieldName = $"_delete{table.CSharpName}Statement";
+        builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
+        AppendDisposeStatement(statementPointerFieldName);
+
+        builder.AppendLine($"public void Delete{table.CSharpName}({primaryKeyColumn.CSharpType} primaryKeyValue)");
+        builder.AppendLine($"{{");
+
+        builder.AppendLine($"    if({statementPointerFieldName} == IntPtr.Zero)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        var result = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {deleteAllSqlBytesFieldName}, {deleteAllSqlBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
+        builder.AppendLine($"        if (result != Result.Ok)");
+        builder.AppendLine($"        {{");
+        builder.AppendLine($"            throw new SqliteException(\"Failed to prepare sqlite statement {query}\", result);");
+        builder.AppendLine($"        }}");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine();
+        BindValue(primaryKeyColumn, builder, statementPointerFieldName, 1, "primaryKeyValue");
+        builder.AppendLine();
+
+        builder.AppendLine($"    var stepResult = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
+        builder.AppendLine();
+        builder.AppendLine($"    if (stepResult != Result.Done)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        throw new SqliteException(\"Failed to execute sqlite statement {table.CreateTable}\", stepResult);");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine();
+
+        builder.AppendLine($"    // reset the statement so it's ready for next time");
+        builder.AppendLine($"    var resetResult = SqliteNativeMethods.sqlite3_reset({statementPointerFieldName});");
+        builder.AppendLine($"    if (resetResult != Result.Ok)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"        throw new SqliteException($\"Failed to reset sqlite statement {query}\", resetResult);");
+        builder.AppendLine($"    }}");
+
+        builder.AppendLine($"}}");
         builder.AppendLine();
     }
 

@@ -90,4 +90,24 @@ public class PrimaryKeyTests
         // assert
         Assert.That(found, Is.False);
     }
+
+    [Test]
+    public void Delete_Exists_RowDeleted()
+    {
+        // arrange
+        _database!.CreatePrimaryKeyTableTable();
+
+        _sqliteNetConnection?.Execute("INSERT INTO primary_key_table (name, email) VALUES (\"Steve\", \"steve.rogers@avengers.com\")");
+        _sqliteNetConnection?.Execute("INSERT INTO primary_key_table (name, email) VALUES (\"Bruce\", \"bruce.banner@avengers.com\")");
+
+        PrimaryKeyTable contact = new();
+
+        // act 
+        _database!.DeletePrimaryKeyTable("Bruce");
+
+        // assert
+        var rows = _sqliteNetConnection?.Query<SqliteNetPrimaryKeyTable>("Select * from primary_key_table;")!;
+        Assert.That(rows.Count(), Is.EqualTo(1));
+        Assert.That(rows.First()!.Name, Is.EqualTo("Steve"));
+    }
 }
