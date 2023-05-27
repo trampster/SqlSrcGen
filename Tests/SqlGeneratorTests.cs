@@ -423,4 +423,42 @@ public class SqlGeneratorTests
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
         }
     }
+
+    [Test]
+    public void ProcessSqlSchema_Schema_ThrowInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema($"CREATE TABLE my_schema.contact (name Text);", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Schema's are not supported"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
+        }
+    }
+
+    [Test]
+    public void ProcessSqlSchema_SqlKeywordName_ThrowInvalidSqlException()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE TABLE [if] (name Text);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("[if]"));
+        Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("If"));
+    }
 }

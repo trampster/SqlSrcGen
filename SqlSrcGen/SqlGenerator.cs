@@ -110,7 +110,7 @@ public class SqlGenerator : ISourceGenerator
 
             foreach (var column in table.Columns)
             {
-                builder.Append($"    public {column.CSharpType} {column.CSharpName} {{ get; set; }}");
+                builder.AppendStart($"public {column.CSharpType} {column.CSharpName} {{ get; set; }}");
                 if (column.CSharpType == "string")
                 {
                     builder.Append(" = \"\";");
@@ -154,6 +154,18 @@ public class SqlGenerator : ISourceGenerator
     {
         AssertEnoughTokens(tokens, index + amount);
         index += amount;
+    }
+
+    void ParseTableName(Span<Token> tokens, ref int index, Table table)
+    {
+        string tableName = tokens[index].Value;
+        if (tableName.Contains("."))
+        {
+            throw new InvalidSqlException("Schema's are not supported", tokens[index]);
+        }
+        table.SqlName = tableName;
+        table.CSharpName = ToDotnetName(tableName);
+        Increment(ref index, 1, tokens);
     }
 
     Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
@@ -201,10 +213,7 @@ public class SqlGenerator : ISourceGenerator
                 break;
         }
 
-        string tableName = tokens[index].Value;
-        table.SqlName = tableName;
-        table.CSharpName = ToDotnetName(tableName);
-        Increment(ref index, 1, tokensToProcess);
+        ParseTableName(tokensToProcess, ref index, table);
 
         table.CreateTable = string.Join(" ", tokens.Slice(0, IndexOf(tokens, ";") + 1).ToArray().Select(u => u.Value).ToArray());
         table.Tempory = isTemp;
@@ -293,6 +302,10 @@ public class SqlGenerator : ISourceGenerator
     string ToDotnetName(string name)
     {
         var builder = new StringBuilder();
+        if (name.StartsWith("[") && name.EndsWith("]"))
+        {
+            name = name.Substring(1, name.Length - 2);
+        }
         bool isFirst = true;
         for (int index = 0; index < name.Length; index++)
         {
