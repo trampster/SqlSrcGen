@@ -219,6 +219,19 @@ public class SqlGenerator : ISourceGenerator
         table.Tempory = isTemp;
         databaseInfo.Tables.Add(table);
 
+        switch (tokens[index].Value.ToLowerInvariant())
+        {
+            case "(":
+                break;
+            case "as":
+                // as isn't supported as it allows you to create tables from select queries
+                // which would mean having to implement select.
+                // This can be revisted once select has been implemented.
+                throw new InvalidSqlException($"as is not currently supported", tokens[index]);
+            default:
+                throw new InvalidSqlException($"Missing ( in CREATE TABLE command", tokens[index]);
+        }
+
         if (tokens[index].Value != "(")
         {
             throw new InvalidSqlException($"Missing ( in CREATE TABLE command at position {tokens[3].Position}", tokens[3]);
