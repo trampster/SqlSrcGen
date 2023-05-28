@@ -17,8 +17,8 @@ database.AllContacts(list);
 
 foreach (var contact in list)
 {
-    Console.WriteLine($"Name: {contact.Name} Email: {contact.Email} Age: {contact.Age} Height: {contact.Height} PrivateKey: {string.Join(',', contact.PrivateKey)}");
-    Console.WriteLine($"Mana: {contact.Mana.GetReal()}");
+    Console.WriteLine($"Name: {contact.Name} Email: {contact.Email} Age: {contact.Age} Height: {contact.Height} PrivateKey: {string.Join(',', contact.PrivateKey!)}");
+    Console.WriteLine($"Mana: {contact.Mana?.GetReal()}");
 }
 
 
