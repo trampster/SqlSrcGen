@@ -242,29 +242,33 @@ public class SqlGenerator : ISourceGenerator
 
         while (true)
         {
-            tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
+            //TODO: this needs to skip nested brackets
+            //tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
 
-            var column = ParseColumnDefinition(consumed, table.Columns);
-
-            table.Columns.Add(column);
-
-            if (found == ")")
+            tokens = ParseColumnDefinition(tokens, table.Columns);
+            if (tokens[0].Value == ")")
             {
+                tokens = tokens.Slice(1);
                 break;
             }
-            if (found == ",")
+            if (tokens[0].Value == ",")
             {
+                tokens = tokens.Slice(1);
                 continue;
             }
 
             throw new InvalidSqlException("Ran out of tokens while looking for ')' or ',' in CREATE TABLE command", tokensToProcess[tokensToProcess.Length - 1]);
         }
 
+        AssertEnoughTokens(tokens, 0);
         if (tokens[0].Value != ";")
         {
             throw new InvalidSqlException($"missing ';' at end of CREATE TABLE command at position {tokens[0].Position}", tokens[0]);
         }
-
+        if (tokens.Length == 0)
+        {
+            return Span<Token>.Empty;
+        }
         return tokens.Slice(1);
     }
 
@@ -339,7 +343,56 @@ public class SqlGenerator : ISourceGenerator
         return builder.ToString();
     }
 
-    Column ParseColumnDefinition(Span<Token> columnDefinition, IEnumerable<Column> existingColumns)
+    Span<Token> ParseType(Span<Token> typeDefinition, out string type)
+    {
+        AssertEnoughTokens(typeDefinition, 1);
+        StringBuilder typeBuilder = new StringBuilder();
+        typeBuilder.Append(typeDefinition[0].Value);
+        int numericLiteralCount = 0;
+        bool lastTokenNumericLiteral = false;
+        if (typeDefinition[1].Value == "(")
+        {
+            typeBuilder.Append("(");
+            AssertEnoughTokens(typeDefinition, 2);
+            for (int index = 2; index < typeDefinition.Length; index++)
+            {
+                var token = typeDefinition[index];
+                if (token.Value == ")")
+                {
+                    typeBuilder.Append(token.Value);
+
+                    type = typeBuilder.ToString();
+                    return typeDefinition.Slice(index + 1);
+                }
+                if (lastTokenNumericLiteral)
+                {
+                    lastTokenNumericLiteral = false;
+                    if (token.Value != ",")
+                    {
+                        throw new InvalidSqlException("expected ',''", token);
+                    }
+                    typeBuilder.Append(",");
+                    continue;
+                }
+                if (!long.TryParse(token.Value, out long value))
+                {
+                    throw new InvalidSqlException("expected signed numeric-literal", token);
+                }
+                lastTokenNumericLiteral = true;
+                typeBuilder.Append(token.Value);
+                numericLiteralCount++;
+                if (numericLiteralCount > 2)
+                {
+                    throw new InvalidSqlException("type-name can't have more than two numeric-literals", token);
+                }
+            }
+            throw new InvalidSqlException("Ran out of tokens trying to parse type", typeDefinition[0]);
+        }
+        type = typeBuilder.ToString();
+        return typeDefinition.Slice(1);
+    }
+
+    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)
     {
         if (columnDefinition.Length < 2)
         {
@@ -351,12 +404,17 @@ public class SqlGenerator : ISourceGenerator
             throw new InvalidSqlException($"Column name {name} already exists in this table", columnDefinition[0]);
         }
 
-        string type = columnDefinition[1].Value;
+        AssertEnoughTokens(columnDefinition, 1);
+
+        columnDefinition = ParseType(columnDefinition.Slice(1), out string type);
+
         bool notNull = false;
         bool primaryKey = false;
-        for (int index = 2; index < columnDefinition.Length; index++)
+        int index;
+        for (index = 0; index < columnDefinition.Length; index++)
         {
             var token = columnDefinition[index];
+            bool end = false;
             switch (token.Value.ToLowerInvariant())
             {
                 case "not":
@@ -367,9 +425,9 @@ public class SqlGenerator : ISourceGenerator
                     var next = columnDefinition[index + 1];
                     if (next.Value.ToLowerInvariant() != "null")
                     {
-                        throw new InvalidSqlException($"Invalid column constraint at position, did you mean 'not null'?", token);
+                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
                     }
-                    index += 1; //we have effectively consume the next one
+                    index += 1; //we have effectively consumed the next one
                     notNull = true;
                     break;
                 case "primary":
@@ -380,7 +438,7 @@ public class SqlGenerator : ISourceGenerator
                     var next1 = columnDefinition[index + 1];
                     if (next1.Value.ToLowerInvariant() != "key")
                     {
-                        throw new InvalidSqlException($"Invalid column constraint at position, did you mean 'primary key'?", token);
+                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
                     }
 
                     if (existingColumns.Any(column => column.PrimaryKey))
@@ -390,11 +448,20 @@ public class SqlGenerator : ISourceGenerator
                     index += 1; //we have effectively consume the next one
                     primaryKey = true;
                     break;
-
+                case ",":
+                case ")":
+                    end = true;
+                    break;
+                default:
+                    throw new InvalidSqlException($"Unsupported constraint", token);
+            }
+            if (end)
+            {
+                break;
             }
         }
         var typeAffinity = ToTypeAffinity(type);
-        return new Column()
+        existingColumns.Add(new Column()
         {
             SqlName = name,
             SqlType = type,
@@ -403,7 +470,12 @@ public class SqlGenerator : ISourceGenerator
             TypeAffinity = typeAffinity,
             NotNull = notNull,
             PrimaryKey = primaryKey
-        };
+        });
+        if (index > columnDefinition.Length - 1)
+        {
+            return Span<Token>.Empty;
+        }
+        return columnDefinition.Slice(index);
     }
 
     /// <summary>

@@ -484,4 +484,19 @@ public class SqlGeneratorTests
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(23));
         }
     }
+
+    [TestCase("varchar(50)", "varchar(50)")]
+    [TestCase("FLOAT(12, 7)", "FLOAT(12,7)")]
+    public void ProcessSqlSchema_TypeNameIncludesBrackets_PrasesColumnTypeCorrectly(string sqlTypeName, string expectedSqlType)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo);
+
+        // assert("InvalidSqlException didn't occur");
+        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo(expectedSqlType));
+    }
 }
