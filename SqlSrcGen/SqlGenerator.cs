@@ -196,7 +196,7 @@ public class SqlGenerator : ISourceGenerator
 
         var table = new Table();
 
-        switch (tokens[index].Value.ToLower())
+        switch (tokens.GetValue(index))
         {
             case "if":
                 AssertEnoughTokens(tokens, index + 2);
@@ -392,6 +392,87 @@ public class SqlGenerator : ISourceGenerator
         return typeDefinition.Slice(1);
     }
 
+    void ParseConflictClause(Span<Token> columnDefinition, ref int index)
+    {
+        AssertEnoughTokens(columnDefinition, index);
+        if (columnDefinition[index].Value.ToLowerInvariant() != "on")
+        {
+            return;
+        }
+        Increment(ref index, 1, columnDefinition);
+        if (columnDefinition[index].Value.ToLowerInvariant() != "conflict")
+        {
+            throw new InvalidSqlException("Unexpected token while parsing column definition, did you mean 'on conflict'?", columnDefinition[index]);
+        }
+        Increment(ref index, 1, columnDefinition);
+        switch (columnDefinition[index].Value.ToLowerInvariant())
+        {
+            case "rollback":
+            case "abort":
+            case "fail":
+            case "ignore":
+            case "replace":
+                Increment(ref index, 1, columnDefinition);
+                return;
+            default:
+                throw new InvalidSqlException("Invalid conflict action", columnDefinition[index]);
+        }
+    }
+
+    void ParsePrimaryKeyColumn(Span<Token> columnDefinition, ref int index, List<Column> existingColumns, Column column)
+    {
+        // already know it starts with primary
+        var token = columnDefinition[index];
+
+        index++;
+
+        if (index > columnDefinition.Length - 1)
+        {
+            throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
+        }
+        var next1 = columnDefinition[index];
+        if (next1.Value.ToLowerInvariant() != "key")
+        {
+            throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
+        }
+
+        if (existingColumns.Any(column => column.PrimaryKey))
+        {
+            throw new InvalidSqlException($"Table already has a primary key", token);
+        }
+        index++;
+
+        // parse asc or desc
+        switch (columnDefinition.GetValue(index))
+        {
+            case "asc":
+            case "desc":
+                Increment(ref index, 1, columnDefinition);
+                break;
+            default:
+                break;
+        }
+
+        ParseConflictClause(columnDefinition, ref index);
+
+        //parse autoincrement
+        if (columnDefinition[index].Value.ToLowerInvariant() == "autoincrement")
+        {
+            column.AutoIncrement = true;
+            Increment(ref index, 1, columnDefinition);
+        }
+
+        // now should be column end
+        switch (columnDefinition[index].Value)
+        {
+            case ")":
+            case ",":
+                return;
+            default:
+                throw new InvalidSqlException("Unexpected token while parsing column definition", columnDefinition[index]);
+        }
+    }
+
     Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)
     {
         if (columnDefinition.Length < 2)
@@ -411,6 +492,9 @@ public class SqlGenerator : ISourceGenerator
         bool notNull = false;
         bool primaryKey = false;
         int index;
+
+        var column = new Column();
+
         for (index = 0; index < columnDefinition.Length; index++)
         {
             var token = columnDefinition[index];
@@ -431,21 +515,8 @@ public class SqlGenerator : ISourceGenerator
                     notNull = true;
                     break;
                 case "primary":
-                    if (index + 1 > columnDefinition.Length - 1)
-                    {
-                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
-                    }
-                    var next1 = columnDefinition[index + 1];
-                    if (next1.Value.ToLowerInvariant() != "key")
-                    {
-                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'primary key'?", token);
-                    }
-
-                    if (existingColumns.Any(column => column.PrimaryKey))
-                    {
-                        throw new InvalidSqlException($"Table already has a primary key", token);
-                    }
-                    index += 1; //we have effectively consume the next one
+                    ParsePrimaryKeyColumn(columnDefinition, ref index, existingColumns, column);
+                    index--; // PrasePrimaryKeyColumn leaves the index at the one after the last consumed token
                     primaryKey = true;
                     break;
                 case ",":
@@ -461,16 +532,16 @@ public class SqlGenerator : ISourceGenerator
             }
         }
         var typeAffinity = ToTypeAffinity(type);
-        existingColumns.Add(new Column()
-        {
-            SqlName = name,
-            SqlType = type,
-            CSharpName = ToDotnetName(name),
-            CSharpType = ToDotnetType(typeAffinity, notNull),
-            TypeAffinity = typeAffinity,
-            NotNull = notNull,
-            PrimaryKey = primaryKey
-        });
+
+        column.SqlName = name;
+        column.SqlType = type;
+        column.CSharpName = ToDotnetName(name);
+        column.CSharpType = ToDotnetType(typeAffinity, notNull);
+        column.TypeAffinity = typeAffinity;
+        column.NotNull = notNull;
+        column.PrimaryKey = primaryKey;
+        existingColumns.Add(column);
+
         if (index > columnDefinition.Length - 1)
         {
             return Span<Token>.Empty;

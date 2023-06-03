@@ -496,7 +496,108 @@ public class SqlGeneratorTests
         // act
         generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo);
 
-        // assert("InvalidSqlException didn't occur");
+        // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo(expectedSqlType));
+    }
+
+    [TestCase("CREATE TABLE new_table (name Integer primary key autoincrement);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key asc autoincrement);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc autoincrement);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict rollback autoincrement);")]
+    public void ProcessSqlSchema_AutoIncrement_SetToTrue(string query)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema(query, databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);
+    }
+
+    [TestCase("CREATE TABLE new_table (name Integer primary key);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key asc);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict rollback);")]
+    public void ProcessSqlSchema_NoAutoIncrement_SetToFalse(string query)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema(query, databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.False);
+    }
+
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict rollback);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict ABORT);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict FAIL);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict IGNORE);")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict REPLACE);")]
+    public void ProcessSqlSchema_OnConflictValid_NoInvalidSqlException(string query)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        // assert
+        generator.ProcessSqlSchema(query, databaseInfo);
+    }
+
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict giveup);", 66, "Invalid conflict action")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict);", 65, "Invalid conflict action")]
+    [TestCase("CREATE TABLE new_table (name Integer primary key desc on);", 56, "Unexpected token while parsing column definition, did you mean 'on conflict'?")]
+    public void ProcessSqlSchema_OnConflictInvalidConflictAtion_InvalidSqlException(string query, int characterInLine, string expectedMessage)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
+        {
+            // act
+            generator.ProcessSqlSchema(query, databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo(expectedMessage));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(characterInLine));
+        }
+    }
+
+    [TestCaseSource(nameof(IncompleteQueries))]
+    public void ProcessSqlSchema_Incomplete_DoesntCrash(string query)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        try
+        {
+            generator.ProcessSqlSchema(query, databaseInfo);
+        }
+        catch (InvalidSqlException)
+        {
+        }
+    }
+
+    static IEnumerable<string> IncompleteQueries()
+    {
+        var query = "CREATE TABLE new_table (name Integer primary key desc on conflict rollback autoincrement);";
+        for (int index = 0; index < query.Length; index++)
+        {
+            yield return query.Substring(0, index);
+        }
     }
 }
