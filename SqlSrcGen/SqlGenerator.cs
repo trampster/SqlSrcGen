@@ -456,8 +456,12 @@ public class SqlGenerator : ISourceGenerator
         ParseConflictClause(columnDefinition, ref index);
 
         //parse autoincrement
-        if (columnDefinition[index].Value.ToLowerInvariant() == "autoincrement")
+        if (columnDefinition.GetValue(index) == "autoincrement")
         {
+            if (column.SqlType.ToLowerInvariant() != "integer")
+            {
+                throw new InvalidSqlException("AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY", columnDefinition[index]);
+            }
             column.AutoIncrement = true;
             Increment(ref index, 1, columnDefinition);
         }
@@ -494,6 +498,11 @@ public class SqlGenerator : ISourceGenerator
         int index;
 
         var column = new Column();
+        var typeAffinity = ToTypeAffinity(type);
+        column.SqlName = name;
+        column.SqlType = type;
+        column.CSharpName = ToDotnetName(name);
+        column.TypeAffinity = typeAffinity;
 
         for (index = 0; index < columnDefinition.Length; index++)
         {
@@ -531,15 +540,11 @@ public class SqlGenerator : ISourceGenerator
                 break;
             }
         }
-        var typeAffinity = ToTypeAffinity(type);
 
-        column.SqlName = name;
-        column.SqlType = type;
-        column.CSharpName = ToDotnetName(name);
-        column.CSharpType = ToDotnetType(typeAffinity, notNull);
-        column.TypeAffinity = typeAffinity;
         column.NotNull = notNull;
         column.PrimaryKey = primaryKey;
+
+        column.CSharpType = ToDotnetType(typeAffinity, notNull);
         existingColumns.Add(column);
 
         if (index > columnDefinition.Length - 1)

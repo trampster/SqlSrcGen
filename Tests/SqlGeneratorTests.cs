@@ -575,6 +575,15 @@ public class SqlGeneratorTests
         }
     }
 
+    static IEnumerable<string> IncompleteQueries()
+    {
+        var query = "CREATE TABLE new_table (name Integer primary key desc on conflict rollback autoincrement);";
+        for (int index = 0; index < query.Length; index++)
+        {
+            yield return query.Substring(0, index);
+        }
+    }
+
     [TestCaseSource(nameof(IncompleteQueries))]
     public void ProcessSqlSchema_Incomplete_DoesntCrash(string query)
     {
@@ -592,12 +601,27 @@ public class SqlGeneratorTests
         }
     }
 
-    static IEnumerable<string> IncompleteQueries()
+    [Test]
+    public void ProcessSqlSchema_AutoincrementNotInteger_InvalidSqlException()
     {
-        var query = "CREATE TABLE new_table (name Integer primary key desc on conflict rollback autoincrement);";
-        for (int index = 0; index < query.Length; index++)
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        try
         {
-            yield return query.Substring(0, index);
+            // act
+            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT)", databaseInfo);
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY"));
+            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(46));
         }
     }
+
 }
