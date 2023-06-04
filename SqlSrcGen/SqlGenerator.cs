@@ -467,6 +467,61 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
+    void SkipBrackets(Span<Token> columnDefinition, ref int index)
+    {
+        int unclosedBrackets = 1;
+        bool insideQuote = false;
+        bool escaped = false;
+
+        if (columnDefinition.GetValue(index) != "(")
+        {
+            throw new InvalidSqlException($"Missing openging bracket", columnDefinition[index]);
+        }
+        Increment(ref index, 1, columnDefinition);
+        for (; index < columnDefinition.Length; index++)
+        {
+            var value = columnDefinition.GetValue(index);
+            switch (value)
+            {
+                case ")":
+                    if (insideQuote)
+                    {
+                        break;
+                    }
+                    unclosedBrackets--;
+                    if (unclosedBrackets == 0)
+                    {
+                        index++;
+                        return;
+                    }
+                    break;
+                case "(":
+                    if (insideQuote)
+                    {
+                        break;
+                    }
+                    unclosedBrackets++;
+                    if (unclosedBrackets == 0)
+                    {
+                        index++;
+                        return;
+                    }
+                    break;
+                case "'":
+                    if (!escaped)
+                    {
+                        insideQuote = !insideQuote;
+                    }
+                    break;
+
+            }
+            if (value == "\\" && !escaped)
+            {
+                escaped = true;
+            }
+        }
+    }
+
     Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)
     {
         if (columnDefinition.Length < 2)
@@ -525,6 +580,11 @@ public class SqlGenerator : ISourceGenerator
                 case "unique":
                     Increment(ref index, 1, columnDefinition);
                     ParseConflictClause(columnDefinition, ref index);
+                    index--;
+                    break;
+                case "check":
+                    Increment(ref index, 1, columnDefinition);
+                    SkipBrackets(columnDefinition, ref index);
                     index--;
                     break;
                 case ",":
