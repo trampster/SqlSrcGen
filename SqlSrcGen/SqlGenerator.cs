@@ -465,16 +465,6 @@ public class SqlGenerator : ISourceGenerator
             column.AutoIncrement = true;
             Increment(ref index, 1, columnDefinition);
         }
-
-        // now should be column end
-        switch (columnDefinition[index].Value)
-        {
-            case ")":
-            case ",":
-                return;
-            default:
-                throw new InvalidSqlException("Unexpected token while parsing column definition", columnDefinition[index]);
-        }
     }
 
     Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)

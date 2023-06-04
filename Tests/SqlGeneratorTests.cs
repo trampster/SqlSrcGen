@@ -611,7 +611,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT)", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -622,6 +622,21 @@ public class SqlGeneratorTests
             Assert.That(exception.Token.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(46));
         }
+    }
+
+    [Test]
+    public void ProcessSqlSchema_NotNullAfterAutoincrement_PrasedCorrectly()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema("CREATE TABLE new_table (name INTEGER primary key AUTOINCREMENT NOT NULL);", databaseInfo);
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);
+        Assert.That(databaseInfo.Tables[0].Columns[0].NotNull, Is.True);
     }
 
 }
