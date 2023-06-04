@@ -2,7 +2,7 @@ using SqlSrcGen;
 
 namespace Tests;
 
-public class NotNullTests
+public class NotNullConstraintTests
 {
     [Test]
     public void ProcessSqlSchema_TextColumnNotNull_CreatesTableInfo()

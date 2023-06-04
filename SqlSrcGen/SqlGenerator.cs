@@ -519,8 +519,13 @@ public class SqlGenerator : ISourceGenerator
                     break;
                 case "primary":
                     ParsePrimaryKeyConstraint(columnDefinition, ref index, existingColumns, column);
-                    index--; // PrasePrimaryKeyColumn leaves the index at the one after the last consumed token
+                    index--; // ParsePrimaryKeyConstraint leaves the index at the one after the last consumed token
                     primaryKey = true;
+                    break;
+                case "unique":
+                    Increment(ref index, 1, columnDefinition);
+                    ParseConflictClause(columnDefinition, ref index);
+                    index--;
                     break;
                 case ",":
                 case ")":
