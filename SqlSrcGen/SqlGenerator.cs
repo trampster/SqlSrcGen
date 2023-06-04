@@ -419,7 +419,7 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
-    void ParsePrimaryKeyColumn(Span<Token> columnDefinition, ref int index, List<Column> existingColumns, Column column)
+    void ParsePrimaryKeyConstraint(Span<Token> columnDefinition, ref int index, List<Column> existingColumns, Column column)
     {
         // already know it starts with primary
         var token = columnDefinition[index];
@@ -505,16 +505,20 @@ public class SqlGenerator : ISourceGenerator
                     {
                         throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
                     }
-                    var next = columnDefinition[index + 1];
-                    if (next.Value.ToLowerInvariant() != "null")
+                    index++;
+                    if (columnDefinition.GetValue(index) != "null")
                     {
                         throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
                     }
-                    index += 1; //we have effectively consumed the next one
+                    //we have effectively consumed the next one
+                    index++;
+                    ParseConflictClause(columnDefinition, ref index);
+                    index--;
+
                     notNull = true;
                     break;
                 case "primary":
-                    ParsePrimaryKeyColumn(columnDefinition, ref index, existingColumns, column);
+                    ParsePrimaryKeyConstraint(columnDefinition, ref index, existingColumns, column);
                     index--; // PrasePrimaryKeyColumn leaves the index at the one after the last consumed token
                     primaryKey = true;
                     break;
