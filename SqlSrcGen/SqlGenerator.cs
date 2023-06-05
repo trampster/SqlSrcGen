@@ -475,7 +475,7 @@ public class SqlGenerator : ISourceGenerator
 
         if (columnDefinition.GetValue(index) != "(")
         {
-            throw new InvalidSqlException($"Missing openging bracket", columnDefinition[index]);
+            throw new InvalidSqlException($"Missing opening bracket", columnDefinition[index]);
         }
         Increment(ref index, 1, columnDefinition);
         for (; index < columnDefinition.Length; index++)
@@ -520,6 +520,71 @@ public class SqlGenerator : ISourceGenerator
                 escaped = true;
             }
         }
+    }
+
+    void ParseLiteralValue(Span<Token> columnDefinition, ref int index)
+    {
+        switch (columnDefinition.GetValue(index))
+        {
+            case "null":
+            case "true":
+            case "false":
+            case "current_time":
+            case "current_date":
+            case "current_timestamp":
+                index++;
+                return;
+            default:
+                var token = columnDefinition[index];
+                if (token.TokenType == TokenType.StringLiteral)
+                {
+                    index++;
+                    return;
+                }
+                if (token.TokenType == TokenType.NumericLiteral)
+                {
+                    index++;
+                    return;
+                }
+                if (token.TokenType == TokenType.BlobLiteral)
+                {
+                    index++;
+                    return;
+                }
+                throw new InvalidSqlException($"Unrecognised default constraint", columnDefinition[index]);
+        }
+    }
+
+    void PraseDefaultConstraint(Span<Token> columnDefinition, ref int index)
+    {
+        if (columnDefinition.GetValue(index) != "default")
+        {
+            throw new InvalidSqlException($"expected default constraint to begin with 'default'", columnDefinition[index]);
+        }
+        Increment(ref index, 1, columnDefinition);
+
+        var token = columnDefinition[index];
+        // signed number
+        if (token.Value == "+" || token.Value == "-")
+        {
+            Increment(ref index, 1, columnDefinition);
+            if (columnDefinition[index].TokenType != TokenType.NumericLiteral)
+            {
+                throw new InvalidSqlException($"missing numeric literal in signed number", columnDefinition[index]);
+            }
+            index++;
+            return;
+        }
+
+        // expression
+        if (token.Value == "(")
+        {
+            SkipBrackets(columnDefinition, ref index);
+            return;
+        }
+
+        //literal
+        ParseLiteralValue(columnDefinition, ref index);
     }
 
     Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)
@@ -585,6 +650,10 @@ public class SqlGenerator : ISourceGenerator
                 case "check":
                     Increment(ref index, 1, columnDefinition);
                     SkipBrackets(columnDefinition, ref index);
+                    index--;
+                    break;
+                case "default":
+                    PraseDefaultConstraint(columnDefinition, ref index);
                     index--;
                     break;
                 case ",":
@@ -658,6 +727,219 @@ public class SqlGenerator : ISourceGenerator
         return tokens;
     }
 
+    ReadOnlySpan<char> ReadStringLiteral(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    {
+        bool escaped = false;
+        for (int index = 1; index < text.Length; index++)
+        {
+            if (text[index] == '\\' && !escaped)
+            {
+                escaped = true;
+                continue;
+            }
+            if (IsNewLine(text.Slice(index)))
+            {
+                lineIndex++;
+                characterInLineIndex = 0;
+            }
+            if (text[index] == '\'' && !escaped)
+            {
+                index++;
+                string tokenValue = text.Slice(0, index).ToString();
+                read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.StringLiteral };
+                position += index;
+                characterInLineIndex += index;
+                return text.Slice(index);
+            }
+            escaped = false;
+        }
+        read = null;
+        position += text.Length;
+        return Span<char>.Empty;
+    }
+
+    public ReadOnlySpan<char> ReadBlobLiteral(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    {
+        int index = 0;
+
+        int startPosition = position;
+        int startLine = lineIndex;
+        int startCharacterInLine = characterInLineIndex;
+        void ThrowInvalidSqlException(string message)
+        {
+            throw new InvalidSqlException(
+                message,
+                new Token()
+                {
+                    Position = startPosition + index,
+                    Line = startLine,
+                    CharacterInLine = startCharacterInLine + index
+                });
+        }
+        if (text.Length < 2)
+        {
+            ThrowInvalidSqlException("Ran out of text parsing blob literal");
+        }
+        if (char.ToLowerInvariant(text[index]) != 'x')
+        {
+            ThrowInvalidSqlException("Blob literal must start with a 'x' or 'X'");
+        }
+        index++;
+        if (text[index] != '\'')
+        {
+            ThrowInvalidSqlException("Second character in a blob literal must be a single quote");
+        }
+        index++;
+        int beforeIndex = index;
+        ParseHexDigits(text, ref index);
+        int hexDigitsParsed = index - beforeIndex;
+        if (hexDigitsParsed % 2 != 0)
+        {
+            ThrowInvalidSqlException("Blob literals must have an even number of hex digits");
+        }
+        if (text[index] != '\'')
+        {
+            ThrowInvalidSqlException("Invalid charactor in blob literal");
+        }
+        index++;
+
+        read = new Token() { Value = text.Slice(0, index).ToString(), Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.BlobLiteral };
+        position += index;
+        characterInLineIndex += index;
+        if (IsNewLine(text.Slice(index)))
+        {
+            lineIndex++;
+            characterInLineIndex = 0;
+        }
+        return text.Slice(index);
+    }
+
+    static bool IsHex(char value)
+    {
+        switch (char.ToLowerInvariant(value))
+        {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+            case 'a':
+            case 'b':
+            case 'c':
+            case 'd':
+            case 'e':
+            case 'f':
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public void ParseDigits(ReadOnlySpan<char> text, ref int index)
+    {
+        for (; index < text.Length; index++)
+        {
+            if (!char.IsDigit(text[index]))
+            {
+                break;
+            }
+        }
+    }
+
+    public void ParseHexDigits(ReadOnlySpan<char> text, ref int index)
+    {
+        for (; index < text.Length; index++)
+        {
+            if (IsHex(text[index]))
+            {
+                continue;
+            }
+            return;
+        }
+    }
+
+    public ReadOnlySpan<char> ParseNumericLiteral(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    {
+        int index = 0;
+        bool hasDot = false;
+        if (text.Length == 0)
+        {
+            throw new InvalidSqlException("Ran out of text trying to read numberic literal", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+        }
+        if (text[0] == '.')
+        {
+            hasDot = true;
+            index++;
+        }
+        else if (!char.IsDigit(text[0]))
+        {
+            throw new InvalidSqlException("numeric literals must start with a '.' or a digit", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+        }
+        if (text[0] == '0' && text.Length > 1 && text[1] == 'x')
+        {
+            index = 2;
+            if (index >= text.Length)
+            {
+                throw new InvalidSqlException("Missing hex value in numeric literal", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+            }
+            ParseHexDigits(text, ref index);
+        }
+        else
+        {
+
+            // parse digits
+            ParseDigits(text, ref index);
+
+
+            if (index < text.Length && text[index] == '.')
+            {
+                if (hasDot)
+                {
+                    throw new InvalidSqlException("numeric literals can contain only one dot", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+                }
+                index++;
+                ParseDigits(text, ref index);
+            }
+
+            if (index < text.Length && text[index] == 'e' || text[index] == 'E')
+            {
+                index++;
+                if (index >= text.Length)
+                {
+                    throw new InvalidSqlException("Missing exponent value in numeric literal", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+                }
+                switch (text[index])
+                {
+                    case '+':
+                    case '-':
+                        index++;
+                        break;
+                }
+                if (index >= text.Length)
+                {
+                    throw new InvalidSqlException("Missing exponent value in numeric literal", new Token() { Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex });
+                }
+                ParseDigits(text, ref index);
+
+            }
+        }
+
+        read = new Token() { Value = text.Slice(0, index).ToString(), Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.NumericLiteral };
+        position += index;
+        characterInLineIndex += index;
+        if (IsNewLine(text.Slice(index)))
+        {
+            lineIndex++;
+            characterInLineIndex = 0;
+        }
+        return text.Slice(index);
+    }
+
     ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
     {
         switch (text[0])
@@ -666,12 +948,30 @@ public class SqlGenerator : ISourceGenerator
             case '(':
             case ')':
             case ';':
+            case '+':
+            case '-':
                 var tokenValue = text.Slice(0, 1).ToString();
                 read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex };
                 position += 1;
                 characterInLineIndex += 1;
                 return text.Slice(1);
         }
+
+        if (text[0] == '\'')
+        {
+            return ReadStringLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
+        }
+
+        if (char.ToLowerInvariant(text[0]) == 'x' && text.Length > 1 && text[1] == '\'')
+        {
+            return ReadBlobLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
+        }
+
+        if (text[0] == '.' || char.IsDigit(text[0]))
+        {
+            return ParseNumericLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
+        }
+
         for (int index = 0; index < text.Length; index++)
         {
             switch (text[index])
@@ -684,6 +984,7 @@ public class SqlGenerator : ISourceGenerator
                 case '(':
                 case ')':
                 case ';':
+                case '\'':
                     string tokenValue = text.Slice(0, index).ToString();
                     read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex };
                     position += index;
