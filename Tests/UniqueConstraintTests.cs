@@ -1,3 +1,4 @@
+using Moq;
 using SqlSrcGen;
 
 namespace Tests;
@@ -12,7 +13,7 @@ public class UniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text unique);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text unique);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -32,7 +33,7 @@ public class UniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (distance INTEGER UNIQUE ON CONFLICT ROLLBACK);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (distance INTEGER UNIQUE ON CONFLICT ROLLBACK);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("INTEGER"));

@@ -1,3 +1,4 @@
+using Moq;
 using SqlSrcGen;
 
 namespace Tests;
@@ -48,7 +49,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -69,7 +70,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -89,7 +90,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (height Real);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (height Real);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -109,7 +110,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -129,7 +130,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -149,7 +150,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -168,7 +169,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text primary key);", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text primary key);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -191,7 +192,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary);", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -214,7 +215,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text, Name Text);", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text, Name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -238,7 +239,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE {tempTokenName} TABLE contact (name Text);", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE {tempTokenName} TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables.First().Tempory, Is.True);
@@ -253,7 +254,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text);", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables.First().Tempory, Is.False);
@@ -267,7 +268,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE IF NOT EXISTS contact (name Text);", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE TABLE IF NOT EXISTS contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -287,7 +288,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE {invalidIfNotExists} contact (name Text);", databaseInfo);
+            generator.ProcessSqlSchema($"CREATE TABLE {invalidIfNotExists} contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -310,7 +311,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE my_schema.contact (name Text);", databaseInfo);
+            generator.ProcessSqlSchema($"CREATE TABLE my_schema.contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -331,7 +332,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE [if] (name Text);", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE TABLE [if] (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("[if]"));
@@ -348,7 +349,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE new_table AS (SELECT * FROM old_table);", databaseInfo);
+            generator.ProcessSqlSchema($"CREATE TABLE new_table AS (SELECT * FROM old_table);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -370,7 +371,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo(expectedSqlType));
@@ -387,7 +388,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema(query, databaseInfo);
+        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);
@@ -404,7 +405,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema(query, databaseInfo);
+        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.False);
@@ -423,7 +424,7 @@ public class SqlGeneratorTests
 
         // act
         // assert
-        generator.ProcessSqlSchema(query, databaseInfo);
+        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
     }
 
     [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict giveup);", 66, "Invalid conflict action")]
@@ -438,7 +439,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema(query, databaseInfo);
+            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -470,7 +471,7 @@ public class SqlGeneratorTests
         // act
         try
         {
-            generator.ProcessSqlSchema(query, databaseInfo);
+            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
         }
         catch (InvalidSqlException)
         {
@@ -487,7 +488,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT);", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -508,7 +509,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE new_table (name INTEGER primary key AUTOINCREMENT NOT NULL);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE new_table (name INTEGER primary key AUTOINCREMENT NOT NULL);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);

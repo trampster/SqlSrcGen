@@ -1,3 +1,4 @@
+using Moq;
 using SqlSrcGen;
 
 namespace Tests;
@@ -12,7 +13,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text not null);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text not null);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -34,7 +35,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer NOT NULL);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer NOT NULL);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -54,7 +55,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (height Real Not Null);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (height Real Not Null);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -74,7 +75,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob not null);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob not null);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -94,7 +95,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT NULL);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT NULL);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
@@ -116,7 +117,7 @@ public class NotNullConstraintTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT);", databaseInfo);
+            generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -137,7 +138,7 @@ public class NotNullConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT NULL ON CONFLICT ROLLBACK);", databaseInfo);
+        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric NOT NULL ON CONFLICT ROLLBACK);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].Columns[0].NotNull, Is.True);

@@ -12,7 +12,6 @@ namespace SqlSrcGen;
 [Generator]
 public class SqlGenerator : ISourceGenerator
 {
-
     public SqlGenerator()
     {
         // while (!System.Diagnostics.Debugger.IsAttached)
@@ -38,9 +37,11 @@ public class SqlGenerator : ISourceGenerator
 
             builder.IncreaseIndent();
 
+            var reporter = new DiagnosticsReporter(context);
+            reporter.Path = additionalFiles.First().Path;
             try
             {
-                ProcessSqlSchema(additionalFiles.First().GetText().ToString(), databaseInfo);
+                ProcessSqlSchema(additionalFiles.First().GetText().ToString(), databaseInfo, reporter);
                 GenerateDatabaseObjects(databaseInfo, builder);
             }
             catch (InvalidSqlException exception)
@@ -79,7 +80,7 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
-    public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo)
+    public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo, IDiagnosticsReporter reporter)
     {
         var tokensList = Tokenize(schemaText);
         var tokens = tokensList.ToArray().AsSpan();
@@ -88,7 +89,7 @@ public class SqlGenerator : ISourceGenerator
             switch (tokens[0].Value.ToLower())
             {
                 case "create":
-                    tokens = ProcessCreateCommand(tokens, databaseInfo);
+                    tokens = ProcessCreateCommand(tokens, databaseInfo, reporter);
                     break;
                 default:
                     throw new InvalidSqlException("Unsupported sql command", tokens[0]);
@@ -168,7 +169,7 @@ public class SqlGenerator : ISourceGenerator
         Increment(ref index, 1, tokens);
     }
 
-    Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
+    Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo, IDiagnosticsReporter diagnosticsReporter)
     {
         var tokens = tokensToProcess;
         bool isTemp = false;
@@ -245,7 +246,7 @@ public class SqlGenerator : ISourceGenerator
             //TODO: this needs to skip nested brackets
             //tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
 
-            tokens = ParseColumnDefinition(tokens, table.Columns);
+            tokens = ParseColumnDefinition(tokens, table.Columns, diagnosticsReporter);
             if (tokens[0].Value == ")")
             {
                 tokens = tokens.Slice(1);
@@ -555,6 +556,32 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
+    void PraseCollateConstraint(Span<Token> columnDefinition, ref int index, IDiagnosticsReporter reporter, Column column)
+    {
+        if (columnDefinition.GetValue(index) != "collate")
+        {
+            throw new InvalidSqlException($"expected collate constraint to begin with 'collate'", columnDefinition[index]);
+        }
+        Increment(ref index, 1, columnDefinition);
+
+        var collation = columnDefinition.GetValue(index);
+        switch (collation)
+        {
+            case "nocase":
+            case "binary":
+            case "rtrim":
+                break;
+            default:
+                reporter.Warning(ErrorCode.SSG0002, "Collation types other than nocase, binary and rtrim require custom collation creation", columnDefinition[index]);
+                break;
+        }
+        if (column.TypeAffinity != TypeAffinity.TEXT)
+        {
+            reporter.Warning(ErrorCode.SSG0003, "Collation only affects Text columns", columnDefinition[index]);
+        }
+        Increment(ref index, 1, columnDefinition);
+    }
+
     void PraseDefaultConstraint(Span<Token> columnDefinition, ref int index)
     {
         if (columnDefinition.GetValue(index) != "default")
@@ -587,7 +614,7 @@ public class SqlGenerator : ISourceGenerator
         ParseLiteralValue(columnDefinition, ref index);
     }
 
-    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns)
+    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter)
     {
         if (columnDefinition.Length < 2)
         {
@@ -654,6 +681,10 @@ public class SqlGenerator : ISourceGenerator
                     break;
                 case "default":
                     PraseDefaultConstraint(columnDefinition, ref index);
+                    index--;
+                    break;
+                case "collate":
+                    PraseCollateConstraint(columnDefinition, ref index, diagnoticsReporter, column);
                     index--;
                     break;
                 case ",":

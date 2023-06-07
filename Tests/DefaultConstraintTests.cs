@@ -1,3 +1,4 @@
+using Moq;
 using SqlSrcGen;
 
 namespace Tests;
@@ -24,7 +25,7 @@ public class DefaultConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text {constraint});", databaseInfo);
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text {constraint});", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
