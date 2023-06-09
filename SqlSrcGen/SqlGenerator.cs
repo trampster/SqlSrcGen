@@ -758,6 +758,47 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
+    void ParseColumnAsConstraint(Span<Token> tokens, ref int index)
+    {
+        if (tokens.GetValue(index) != "as")
+        {
+            throw new InvalidSqlException($"expected as constraint to begin with 'as'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "(")
+        {
+            throw new InvalidSqlException($"expected '('", tokens[index]);
+        }
+        SkipBrackets(tokens, ref index);
+
+        switch (tokens.GetValue(index))
+        {
+            case "stored":
+            case "virtual":
+                Increment(ref index, 1, tokens);
+                return;
+            default:
+                return;
+        }
+    }
+
+    void ParseGeneratedConstraint(Span<Token> tokens, ref int index)
+    {
+        if (tokens.GetValue(index) != "generated")
+        {
+            throw new InvalidSqlException($"expected generated constraint to begin with 'generated'", tokens[index]);
+        }
+
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "always")
+        {
+            throw new InvalidSqlException($"expected 'always'", tokens[index]);
+        }
+
+        Increment(ref index, 1, tokens);
+        ParseColumnAsConstraint(tokens, ref index);
+    }
+
     List<Token> ReadList(Span<Token> tokens, ref int index)
     {
         List<Token> list = new();
@@ -862,6 +903,14 @@ public class SqlGenerator : ISourceGenerator
                     break;
                 case "references":
                     ParseReferencesConstraint(columnDefinition, ref index, existingTables, true, diagnoticsReporter);
+                    index--;
+                    break;
+                case "generated":
+                    ParseGeneratedConstraint(columnDefinition, ref index);
+                    index--;
+                    break;
+                case "as":
+                    ParseColumnAsConstraint(columnDefinition, ref index);
                     index--;
                     break;
                 case ",":
