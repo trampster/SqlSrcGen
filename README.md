@@ -42,7 +42,7 @@ database.AllContacts(list);
 
 // get row via primary key, (only generated for tables with a primary key)
 var contact = new Contact();
-bool found = database.GetContact(contact, contact);
+bool found = database.GetContact(contact, "Steve Rogers");
 
 // delete all rows from table
 database!.DeleteAllContacts();
