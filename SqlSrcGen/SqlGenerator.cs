@@ -246,7 +246,7 @@ public class SqlGenerator : ISourceGenerator
             //TODO: this needs to skip nested brackets
             //tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
 
-            tokens = ParseColumnDefinition(tokens, table.Columns, diagnosticsReporter);
+            tokens = ParseColumnDefinition(tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables);
             if (tokens[0].Value == ")")
             {
                 tokens = tokens.Slice(1);
@@ -614,7 +614,180 @@ public class SqlGenerator : ISourceGenerator
         ParseLiteralValue(columnDefinition, ref index);
     }
 
-    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter)
+    void PraseReferencesDeferrableClause(Span<Token> tokens, ref int index)
+    {
+        if (tokens.GetValue(index) != "deferrable")
+        {
+            throw new InvalidSqlException($"expected references deferrable clause to begin with 'deferrable'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "initially")
+        {
+            return;
+        }
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "deferred":
+            case "immediate":
+                break;
+            default:
+                throw new InvalidSqlException($"expected 'deferred' or 'immediate", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+    }
+
+    void ParseReferencesOnClause(Span<Token> tokens, ref int index)
+    {
+        if (tokens.GetValue(index) != "on")
+        {
+            throw new InvalidSqlException($"expected references on clause to begin with 'on'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "delete":
+                break;
+            case "update":
+                break;
+            default:
+                throw new InvalidSqlException($"Expected 'delete' or 'update'", tokens[index]);
+        }
+
+        Increment(ref index, 1, tokens);
+
+        switch (tokens.GetValue(index))
+        {
+            case "set":
+                Increment(ref index, 1, tokens);
+                switch (tokens.GetValue(index))
+                {
+                    case "null":
+                    case "default":
+                        break;
+                    default:
+                        throw new InvalidSqlException($"Expected 'null' or 'default'", tokens[index]);
+                }
+                break;
+            case "cascade":
+            case "restrict":
+                break;
+            case "no":
+                Increment(ref index, 1, tokens);
+                if (tokens.GetValue(index) != "action")
+                {
+                    throw new InvalidSqlException($"Expected 'action'", tokens[index]);
+                }
+                break;
+            default:
+                throw new InvalidSqlException($"Expected 'delete' or 'update'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+    }
+
+    void ParseReferencesConstraint(Span<Token> tokens, ref int index, List<Table> existingTables, bool isColumnConstraint, IDiagnosticsReporter diagnoticsReporter)
+    {
+        if (tokens.GetValue(index) != "references")
+        {
+            throw new InvalidSqlException($"expected default constraint to begin with 'references'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+
+        var foreignTableName = tokens.GetValue(index);
+        var foreignTable = existingTables.Where(table => table.SqlName.ToLowerInvariant() == foreignTableName).FirstOrDefault();
+        if (foreignTable == null)
+        {
+            throw new InvalidSqlException($"referenced table {tokens[index].Value} does not exist", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        var columnList = ReadList(tokens, ref index);
+        if (isColumnConstraint)
+        {
+            if (columnList.Count > 1)
+            {
+                throw new InvalidSqlException($"columns constraints cannot reference multiple columns", tokens[index]);
+            }
+            if (columnList.Count == 1)
+            {
+                var columnName = columnList[0].Value.ToLowerInvariant();
+                var column = foreignTable.Columns.Where(column => column.SqlName == columnName).FirstOrDefault();
+                if (column == null)
+                {
+                    throw new InvalidSqlException($"referenced column {columnName} does not exist", tokens[index]);
+                }
+
+                if (!column.PrimaryKey && !column.Unique)
+                {
+                    throw new InvalidSqlException($"referenced column {columnName} must be primary key or unique", tokens[index]);
+                }
+            }
+        }
+
+        while (true)
+        {
+            var tokenValue = tokens.GetValue(index);
+            if (tokenValue == "on")
+            {
+                ParseReferencesOnClause(tokens, ref index);
+                continue;
+            }
+            if (tokenValue == "match")
+            {
+                diagnoticsReporter.Warning(
+                    ErrorCode.SSG0004,
+                    "SQLite parses MATCH clauses, but does not enforce them. All foreign key constraints in SQLite are handled as if MATCH SIMPLE were specified.",
+                    tokens[index]);
+                // read match clause
+                Increment(ref index, 1, tokens);
+                Increment(ref index, 1, tokens);
+                continue;
+            }
+            if (tokenValue == "not")
+            {
+                // read not deferable clause
+                Increment(ref index, 1, tokens);
+                PraseReferencesDeferrableClause(tokens, ref index);
+                break;
+            }
+            if (tokenValue == "deferrable")
+            {
+                PraseReferencesDeferrableClause(tokens, ref index);
+                break;
+            }
+            break;
+        }
+    }
+
+    List<Token> ReadList(Span<Token> tokens, ref int index)
+    {
+        List<Token> list = new();
+
+        if (tokens.GetValue(index) != "(")
+        {
+            return list;
+        }
+        Increment(ref index, 1, tokens);
+        for (; index < tokens.Length; index++)
+        {
+            list.Add(tokens[index]);
+
+            Increment(ref index, 1, tokens);
+            if (tokens[index].Value == "'")
+            {
+                continue;
+            }
+
+            if (tokens[index].Value == ")")
+            {
+                Increment(ref index, 1, tokens);
+                return list;
+            }
+            throw new InvalidSqlException($"Unexpected token in list", tokens[index]);
+        }
+        throw new InvalidSqlException($"Ran out of tokens while parsing list", tokens[index]);
+    }
+
+    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
     {
         if (columnDefinition.Length < 2)
         {
@@ -685,6 +858,10 @@ public class SqlGenerator : ISourceGenerator
                     break;
                 case "collate":
                     PraseCollateConstraint(columnDefinition, ref index, diagnoticsReporter, column);
+                    index--;
+                    break;
+                case "references":
+                    ParseReferencesConstraint(columnDefinition, ref index, existingTables, true, diagnoticsReporter);
                     index--;
                     break;
                 case ",":
