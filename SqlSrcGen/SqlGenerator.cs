@@ -828,6 +828,58 @@ public class SqlGenerator : ISourceGenerator
         throw new InvalidSqlException($"Ran out of tokens while parsing list", tokens[index]);
     }
 
+    void ParseColumnConstraint(Span<Token> tokens, ref int index, Column column, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    {
+        var token = tokens[index];
+        switch (token.Value.ToLowerInvariant())
+        {
+            case "not":
+                if (index + 1 > tokens.Length - 1)
+                {
+                    throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
+                }
+                Increment(ref index, 1, tokens);
+                if (tokens.GetValue(index) != "null")
+                {
+                    throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
+                }
+                //we have effectively consumed the next one
+                Increment(ref index, 1, tokens);
+                ParseConflictClause(tokens, ref index);
+                column.NotNull = true;
+                break;
+            case "primary":
+                ParsePrimaryKeyConstraint(tokens, ref index, existingColumns, column);
+                column.PrimaryKey = true;
+                break;
+            case "unique":
+                Increment(ref index, 1, tokens);
+                ParseConflictClause(tokens, ref index);
+                break;
+            case "check":
+                Increment(ref index, 1, tokens);
+                SkipBrackets(tokens, ref index);
+                break;
+            case "default":
+                PraseDefaultConstraint(tokens, ref index);
+                break;
+            case "collate":
+                PraseCollateConstraint(tokens, ref index, diagnoticsReporter, column);
+                break;
+            case "references":
+                ParseReferencesConstraint(tokens, ref index, existingTables, true, diagnoticsReporter);
+                break;
+            case "generated":
+                ParseGeneratedConstraint(tokens, ref index);
+                break;
+            case "as":
+                ParseColumnAsConstraint(tokens, ref index);
+                break;
+            default:
+                throw new InvalidSqlException($"Unsupported constraint", token);
+        }
+    }
+
     Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
     {
         if (columnDefinition.Length < 2)
@@ -844,9 +896,7 @@ public class SqlGenerator : ISourceGenerator
 
         columnDefinition = ParseType(columnDefinition.Slice(1), out string type);
 
-        bool notNull = false;
-        bool primaryKey = false;
-        int index;
+        int index = 0;
 
         var column = new Column();
         var typeAffinity = ToTypeAffinity(type);
@@ -854,71 +904,28 @@ public class SqlGenerator : ISourceGenerator
         column.SqlType = type;
         column.CSharpName = ToDotnetName(name);
         column.TypeAffinity = typeAffinity;
-
-        for (index = 0; index < columnDefinition.Length; index++)
+        while (true)
         {
             var token = columnDefinition[index];
             bool end = false;
             switch (token.Value.ToLowerInvariant())
             {
-                case "not":
-                    if (index + 1 > columnDefinition.Length - 1)
-                    {
-                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
-                    }
-                    index++;
-                    if (columnDefinition.GetValue(index) != "null")
-                    {
-                        throw new InvalidSqlException($"Invalid column constraint, did you mean 'not null'?", token);
-                    }
-                    //we have effectively consumed the next one
-                    index++;
-                    ParseConflictClause(columnDefinition, ref index);
-                    index--;
-
-                    notNull = true;
-                    break;
-                case "primary":
-                    ParsePrimaryKeyConstraint(columnDefinition, ref index, existingColumns, column);
-                    index--; // ParsePrimaryKeyConstraint leaves the index at the one after the last consumed token
-                    primaryKey = true;
-                    break;
-                case "unique":
+                case "constraint":
                     Increment(ref index, 1, columnDefinition);
-                    ParseConflictClause(columnDefinition, ref index);
-                    index--;
-                    break;
-                case "check":
+                    if (columnDefinition[index].TokenType != TokenType.Other)
+                    {
+                        throw new InvalidSqlException($"Expected column name", token);
+                    }
                     Increment(ref index, 1, columnDefinition);
-                    SkipBrackets(columnDefinition, ref index);
-                    index--;
-                    break;
-                case "default":
-                    PraseDefaultConstraint(columnDefinition, ref index);
-                    index--;
-                    break;
-                case "collate":
-                    PraseCollateConstraint(columnDefinition, ref index, diagnoticsReporter, column);
-                    index--;
-                    break;
-                case "references":
-                    ParseReferencesConstraint(columnDefinition, ref index, existingTables, true, diagnoticsReporter);
-                    index--;
-                    break;
-                case "generated":
-                    ParseGeneratedConstraint(columnDefinition, ref index);
-                    index--;
-                    break;
-                case "as":
-                    ParseColumnAsConstraint(columnDefinition, ref index);
-                    index--;
+                    ParseColumnConstraint(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables);
                     break;
                 case ",":
                 case ")":
                     end = true;
                     break;
                 default:
-                    throw new InvalidSqlException($"Unsupported constraint", token);
+                    ParseColumnConstraint(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables);
+                    break;
             }
             if (end)
             {
@@ -926,10 +933,7 @@ public class SqlGenerator : ISourceGenerator
             }
         }
 
-        column.NotNull = notNull;
-        column.PrimaryKey = primaryKey;
-
-        column.CSharpType = ToDotnetType(typeAffinity, notNull);
+        column.CSharpType = ToDotnetType(typeAffinity, column.NotNull);
         existingColumns.Add(column);
 
         if (index > columnDefinition.Length - 1)
