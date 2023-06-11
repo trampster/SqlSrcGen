@@ -157,15 +157,33 @@ public class SqlGenerator : ISourceGenerator
         index += amount;
     }
 
-    void ParseTableName(Span<Token> tokens, ref int index, Table table)
+    void ParseTableName(Span<Token> tokens, ref int index, Table table, List<Table> existingTables)
     {
         string tableName = tokens[index].Value;
-        if (tableName.Contains("."))
+        if (tokens.GetValue(index + 1) == ".")
         {
-            throw new InvalidSqlException("Schema's are not supported", tokens[index]);
+            throw new InvalidSqlException("Attached databases are not supported", tokens[index]);
         }
+
         table.SqlName = tableName;
         table.CSharpName = ToDotnetName(tableName);
+
+        var tableMatchingCSharpName = existingTables.Where(existing => existing.CSharpName == table.CSharpName).FirstOrDefault();
+        if (tableMatchingCSharpName != null)
+        {
+            throw new InvalidSqlException(
+                "Table maps to same csharp class name as an existing table",
+                tokens[index]);
+        }
+
+        var tableMatchingSqlName = existingTables.Where(existing => existing.SqlName == table.SqlName).FirstOrDefault();
+        if (tableMatchingSqlName != null)
+        {
+            throw new InvalidSqlException(
+                "Table already exists",
+                tokens[index]);
+        }
+
         Increment(ref index, 1, tokens);
     }
 
@@ -214,7 +232,7 @@ public class SqlGenerator : ISourceGenerator
                 break;
         }
 
-        ParseTableName(tokensToProcess, ref index, table);
+        ParseTableName(tokensToProcess, ref index, table, databaseInfo.Tables);
 
         table.CreateTable = string.Join(" ", tokens.Slice(0, IndexOf(tokens, ";") + 1).ToArray().Select(u => u.Value).ToArray());
         table.Tempory = isTemp;
@@ -243,9 +261,6 @@ public class SqlGenerator : ISourceGenerator
 
         while (true)
         {
-            //TODO: this needs to skip nested brackets
-            //tokens = ReadTo(tokens, ",", ")", out Span<Token> consumed, out string found);
-
             tokens = ParseColumnDefinition(tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables);
             if (tokens[0].Value == ")")
             {
@@ -324,22 +339,43 @@ public class SqlGenerator : ISourceGenerator
         {
             name = name.Substring(1, name.Length - 2);
         }
+        bool startsLower = false;
+        if (name.Length > 0 && char.IsLower(name[0]))
+        {
+            startsLower = true;
+        }
         bool isFirst = true;
         for (int index = 0; index < name.Length; index++)
         {
             var charactor = name[index];
+            if (charactor == '_')
+            {
+                isFirst = true;
+                continue;
+            }
+            if (charactor == ' ')
+            {
+                isFirst = true;
+                continue;
+            }
+            if (charactor == '\r')
+            {
+                isFirst = true;
+                continue;
+            }
+            if (charactor == '\n')
+            {
+                isFirst = true;
+                continue;
+            }
             if (isFirst)
             {
                 builder.Append(charactor.ToString().ToUpperInvariant()[0]);
                 isFirst = false;
                 continue;
             }
-            if (charactor == '_')
-            {
-                isFirst = true;
-                continue;
-            }
-            builder.Append(charactor);
+
+            builder.Append(startsLower ? charactor.ToString() : charactor.ToString().ToLowerInvariant());
         }
         return builder.ToString();
     }
@@ -891,6 +927,11 @@ public class SqlGenerator : ISourceGenerator
         {
             throw new InvalidSqlException($"Column name {name} already exists in this table", columnDefinition[0]);
         }
+        string cSharpName = ToDotnetName(name);
+        if (existingColumns.Any(existing => existing.CSharpName == cSharpName))
+        {
+            throw new InvalidSqlException("Column maps to same csharp name as an existing column", columnDefinition[0]);
+        }
 
         AssertEnoughTokens(columnDefinition, 1);
 
@@ -902,7 +943,9 @@ public class SqlGenerator : ISourceGenerator
         var typeAffinity = ToTypeAffinity(type);
         column.SqlName = name;
         column.SqlType = type;
-        column.CSharpName = ToDotnetName(name);
+        column.CSharpName = cSharpName;
+
+
         column.TypeAffinity = typeAffinity;
         while (true)
         {
@@ -988,11 +1031,55 @@ public class SqlGenerator : ISourceGenerator
         return tokens;
     }
 
+    ReadOnlySpan<char> ReadSquareBacketToken(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    {
+        int positionStart = position;
+        int characterInLineIndexStart = characterInLineIndex;
+        int lineStart = lineIndex;
+
+        position++;
+        characterInLineIndex++;
+        for (int index = 1; index < text.Length; index++)
+        {
+            position++;
+            characterInLineIndex++;
+            if (text[index] == ']')
+            {
+                index++;
+                string tokenValue = text.Slice(0, index).ToString();
+                read = new Token()
+                {
+                    Value = tokenValue,
+                    Position = positionStart,
+                    Line = lineStart,
+                    CharacterInLine = characterInLineIndexStart,
+                    TokenType = TokenType.Other
+                };
+                return index < text.Length ? text.Slice(index) : ReadOnlySpan<char>.Empty;
+            }
+            if (IsNewLine(text.Slice(index)))
+            {
+                lineIndex++;
+                characterInLineIndex = 0;
+            }
+        }
+
+        var token = new Token() { Value = "", Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.StringLiteral };
+        throw new InvalidSqlException("Ran out of charactors looking for ']'", new Token() { });
+    }
+
+
     ReadOnlySpan<char> ReadStringLiteral(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
     {
+        int positionStart = position;
+        int characterInLineIndexStart = characterInLineIndex;
+        int lineStart = lineIndex;
+
         bool escaped = false;
         for (int index = 1; index < text.Length; index++)
         {
+            position++;
+            characterInLineIndex++;
             if (text[index] == '\\' && !escaped)
             {
                 escaped = true;
@@ -1007,16 +1094,20 @@ public class SqlGenerator : ISourceGenerator
             {
                 index++;
                 string tokenValue = text.Slice(0, index).ToString();
-                read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.StringLiteral };
-                position += index;
-                characterInLineIndex += index;
-                return text.Slice(index);
+                read = new Token()
+                {
+                    Value = tokenValue,
+                    Position = positionStart,
+                    Line = lineStart,
+                    CharacterInLine = characterInLineIndexStart,
+                    TokenType = TokenType.StringLiteral
+                };
+                return index < text.Length ? text.Slice(index) : ReadOnlySpan<char>.Empty;
             }
             escaped = false;
         }
-        read = null;
-        position += text.Length;
-        return Span<char>.Empty;
+        var token = new Token() { Value = "", Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex, TokenType = TokenType.StringLiteral };
+        throw new InvalidSqlException("Ran out of charactors looking for end of string literal", new Token() { });
     }
 
     public ReadOnlySpan<char> ReadBlobLiteral(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
@@ -1218,6 +1309,11 @@ public class SqlGenerator : ISourceGenerator
                 return text.Slice(1);
         }
 
+        if (text[0] == '[')
+        {
+            return ReadSquareBacketToken(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
+        }
+
         if (text[0] == '\'')
         {
             return ReadStringLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
@@ -1228,9 +1324,19 @@ public class SqlGenerator : ISourceGenerator
             return ReadBlobLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
         }
 
-        if (text[0] == '.' || char.IsDigit(text[0]))
+        if ((text[0] == '.' && 1 < text.Length && char.IsDigit(text[1])) ||
+            char.IsDigit(text[0]))
         {
             return ParseNumericLiteral(text, out read, ref position, ref lineIndex, ref characterInLineIndex);
+        }
+
+        if (text[0] == '.')
+        {
+            var tokenValue = text.Slice(0, 1).ToString();
+            read = new Token() { Value = tokenValue, Position = position, Line = lineIndex, CharacterInLine = characterInLineIndex };
+            position += 1;
+            characterInLineIndex += 1;
+            return text.Slice(1);
         }
 
         for (int index = 0; index < text.Length; index++)
@@ -1238,6 +1344,7 @@ public class SqlGenerator : ISourceGenerator
             switch (text[index])
             {
                 case ' ':
+                case '.':
                 case '\t':
                 case '\n':
                 case '\r':

@@ -318,7 +318,7 @@ public class SqlGeneratorTests
         }
         catch (InvalidSqlException exception)
         {
-            Assert.That(exception.Message, Is.EqualTo("Schema's are not supported"));
+            Assert.That(exception.Message, Is.EqualTo("Attached databases are not supported"));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
         }
