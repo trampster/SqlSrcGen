@@ -123,6 +123,52 @@ public class SqlGeneratorTests
     }
 
     [Test]
+    public void ProcessSqlSchema_NoType_UsesBlob()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema("CREATE TABLE contact (key);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
+        Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("key"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Key"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("blob"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+    }
+
+    [Test]
+    public void ProcessSqlSchema_TwoNoType_UsesBlob()
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema("CREATE TABLE contact (one, two);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
+        Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("one"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("One"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("blob"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+
+        Assert.That(databaseInfo.Tables[0].Columns[1].SqlName, Is.EqualTo("two"));
+        Assert.That(databaseInfo.Tables[0].Columns[1].CSharpName, Is.EqualTo("Two"));
+        Assert.That(databaseInfo.Tables[0].Columns[1].SqlType, Is.EqualTo("blob"));
+        Assert.That(databaseInfo.Tables[0].Columns[1].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(databaseInfo.Tables[0].Columns[1].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+    }
+
+    [Test]
     public void ProcessSqlSchema_NumericColumnNull_CreatesTableInfo()
     {
         // arrange
