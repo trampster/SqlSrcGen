@@ -257,27 +257,34 @@ public class SqlGenerator : ISourceGenerator
         }
         Increment(ref index, 1, tokensToProcess);
 
-        tokens = tokens.Slice(index);
-
+        bool finishedColumns = false;
         while (true)
         {
-            tokens = ParseColumnDefinition(tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables);
-            if (tokens[0].Value == ")")
+            bool readTableConstraint = ParseTableConstraint(ref index, tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables, table);
+            if (!finishedColumns && readTableConstraint)
             {
-                tokens = tokens.Slice(1);
+                finishedColumns = true;
+            }
+            if (!finishedColumns)
+            {
+                ParseColumnDefinition(ref index, tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables);
+            }
+            if (tokens[index].Value == ")")
+            {
+                Increment(ref index, 1, tokens);
                 break;
             }
-            if (tokens[0].Value == ",")
+            if (tokens[index].Value == ",")
             {
-                tokens = tokens.Slice(1);
+                Increment(ref index, 1, tokens);
                 continue;
             }
 
             throw new InvalidSqlException("Ran out of tokens while looking for ')' or ',' in CREATE TABLE command", tokensToProcess[tokensToProcess.Length - 1]);
         }
 
-        AssertEnoughTokens(tokens, 0);
-        if (tokens[0].Value != ";")
+        AssertEnoughTokens(tokens, index);
+        if (tokens[index].Value != ";")
         {
             throw new InvalidSqlException($"missing ';' at end of CREATE TABLE command at position {tokens[0].Position}", tokens[0]);
         }
@@ -285,7 +292,7 @@ public class SqlGenerator : ISourceGenerator
         {
             return Span<Token>.Empty;
         }
-        return tokens.Slice(1);
+        return tokens.Slice(index + 1);
     }
 
     TypeAffinity ToTypeAffinity(string sqlType)
@@ -380,7 +387,7 @@ public class SqlGenerator : ISourceGenerator
         return builder.ToString();
     }
 
-    Span<Token> ParseType(Span<Token> typeDefinition, out string type)
+    int ParseType(Span<Token> typeDefinition, out string type)
     {
         AssertEnoughTokens(typeDefinition, 1);
         StringBuilder typeBuilder = new StringBuilder();
@@ -399,7 +406,7 @@ public class SqlGenerator : ISourceGenerator
                     typeBuilder.Append(token.Value);
 
                     type = typeBuilder.ToString();
-                    return typeDefinition.Slice(index + 1);
+                    return index + 1;
                 }
                 if (lastTokenNumericLiteral)
                 {
@@ -426,7 +433,7 @@ public class SqlGenerator : ISourceGenerator
             throw new InvalidSqlException("Ran out of tokens trying to parse type", typeDefinition[0]);
         }
         type = typeBuilder.ToString();
-        return typeDefinition.Slice(1);
+        return 1;
     }
 
     void ParseConflictClause(Span<Token> columnDefinition, ref int index)
@@ -844,13 +851,14 @@ public class SqlGenerator : ISourceGenerator
             return list;
         }
         Increment(ref index, 1, tokens);
-        for (; index < tokens.Length; index++)
+        while (true)
         {
             list.Add(tokens[index]);
 
             Increment(ref index, 1, tokens);
-            if (tokens[index].Value == "'")
+            if (tokens[index].Value == ",")
             {
+                Increment(ref index, 1, tokens);
                 continue;
             }
 
@@ -861,7 +869,6 @@ public class SqlGenerator : ISourceGenerator
             }
             throw new InvalidSqlException($"Unexpected token in list", tokens[index]);
         }
-        throw new InvalidSqlException($"Ran out of tokens while parsing list", tokens[index]);
     }
 
     bool ParseColumnConstraint(Span<Token> columnDefinition, ref int index, Column column, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
@@ -931,40 +938,103 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
-    Span<Token> ParseColumnDefinition(Span<Token> columnDefinition, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    void ParseTablePrimaryKeyConstraint(
+        ref int index,
+        Span<Token> tokens,
+        List<Column> existingColumns,
+        Table table)
     {
-        if (columnDefinition.Length < 2)
+        if (existingColumns.Any(existing => existing.PrimaryKey) || table.PrimaryKey.Any())
         {
-            throw new InvalidSqlException($"Invalid column definition at position {columnDefinition[columnDefinition.Length - 1].Position}", columnDefinition[columnDefinition.Length - 1]);
+            throw new InvalidSqlException("Table already has a primary key", tokens[index]);
         }
-        string name = columnDefinition[0].Value;
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "key")
+        {
+            throw new InvalidSqlException("Expected 'key'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        var columns = ReadList(tokens, ref index);
+        if (columns.Count == 1)
+        {
+            var columnName = columns[0].Value.ToLowerInvariant();
+            var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
+            if (existingColumn == null)
+            {
+                throw new InvalidSqlException($"Column {columnName} doesn't exist", columns[0]);
+            }
+            existingColumn.PrimaryKey = true;
+        }
+        else if (columns.Count > 1)
+        {
+            foreach (var column in columns)
+            {
+                var columnName = column.Value.ToLowerInvariant();
+                var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
+                if (existingColumn == null)
+                {
+                    throw new InvalidSqlException($"Column {columnName} doesn't exist", columns[0]);
+                }
+                table.PrimaryKey.Add(existingColumn);
+            }
+        }
+        ParseConflictClause(tokens, ref index);
+    }
+
+    bool ParseTableConstraint(
+        ref int index,
+        Span<Token> tokens,
+        List<Column> existingColumns,
+        IDiagnosticsReporter diagnoticsReporter,
+        List<Table> existingTables,
+        Table table)
+    {
+        switch (tokens.GetValue(index))
+        {
+            case "constraint":
+                throw new NotImplementedException();
+            case "primary":
+                ParseTablePrimaryKeyConstraint(ref index, tokens, existingColumns, table);
+                return true;
+            case "unique":
+                throw new NotImplementedException();
+            case "check":
+                throw new NotImplementedException();
+            case "foreign":
+                throw new NotImplementedException();
+        }
+
+        return false;
+    }
+
+    void ParseColumnDefinition(ref int index, Span<Token> tokens, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    {
+        AssertEnoughTokens(tokens, index);
+        string name = tokens[index].Value;
         if (existingColumns.Any(column => column.SqlName.ToLower() == name.ToLower()))
         {
-            throw new InvalidSqlException($"Column name {name} already exists in this table", columnDefinition[0]);
+            throw new InvalidSqlException($"Column name {name} already exists in this table", tokens[index]);
         }
         string cSharpName = ToDotnetName(name);
         if (existingColumns.Any(existing => existing.CSharpName == cSharpName))
         {
-            throw new InvalidSqlException("Column maps to same csharp name as an existing column", columnDefinition[0]);
+            throw new InvalidSqlException("Column maps to same csharp name as an existing column", tokens[index]);
         }
 
-        int index = 0;
-
-        Increment(ref index, 1, columnDefinition);
+        Increment(ref index, 1, tokens);
 
         var column = new Column();
         column.SqlName = name;
         column.CSharpName = cSharpName;
         column.SqlType = "blob";
 
-        if (!ParseColumnConstraint(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables))
+        if (!ParseColumnConstraint(tokens, ref index, column, existingColumns, diagnoticsReporter, existingTables))
         {
-            var token = columnDefinition[index];
+            var token = tokens[index];
             if (token.Value != "," && token.Value != ")")
             {
-                columnDefinition = ParseType(columnDefinition.Slice(index), out string type);
+                index += ParseType(tokens.Slice(index), out string type);
                 column.SqlType = type;
-                index = 0;
             }
         }
 
@@ -974,22 +1044,16 @@ public class SqlGenerator : ISourceGenerator
 
         while (true)
         {
-            var token = columnDefinition[index];
+            var token = tokens[index];
             if (token.Value == "," || token.Value == ")")
             {
                 break;
             }
-            ParseColumnConstraint(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables);
+            ParseColumnConstraint(tokens, ref index, column, existingColumns, diagnoticsReporter, existingTables);
         }
 
         column.CSharpType = ToDotnetType(typeAffinity, column.NotNull);
         existingColumns.Add(column);
-
-        if (index > columnDefinition.Length - 1)
-        {
-            return Span<Token>.Empty;
-        }
-        return columnDefinition.Slice(index);
     }
 
     /// <summary>

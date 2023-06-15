@@ -52,6 +52,11 @@ public class DatabaseAccessGenerator
                 GenerateGet(table, builder);
                 GenerateDelete(table, builder);
             }
+            if (table.PrimaryKey.Any())
+            {
+                GenerateGet(table, builder);
+                GenerateDelete(table, builder);
+            }
 
             GenerateDeleteAll(table, builder);
         }
@@ -157,17 +162,48 @@ public class DatabaseAccessGenerator
 
     void GenerateDelete(Table table, SourceBuilder builder)
     {
-        var primaryKeyColumn = table.Columns.Where(column => column.PrimaryKey).First();
+        var primaryKeys =
+            table.PrimaryKey.Any() ?
+            table.PrimaryKey :
+            table.Columns.Where(column => column.PrimaryKey).ToList();
 
+        var queryBuilder = new StringBuilder();
+        queryBuilder.Append($"DELETE FROM {table.SqlName} WHERE ");
+        bool isFirst = true;
+        foreach (var column in primaryKeys)
+        {
+            if (!isFirst)
+            {
+                queryBuilder.Append("AND ");
+            }
+            queryBuilder.Append($"{column.SqlName} == ? ");
+            isFirst = false;
+        }
+        queryBuilder.Append(";");
+
+        var query = queryBuilder.ToString();
         string deleteAllSqlBytesFieldName = $"_delete{table.CSharpName}Bytes";
-        string query = $"delete from {table.SqlName} where {primaryKeyColumn.SqlName} == ?;";
         AppendQueryBytesField(builder, deleteAllSqlBytesFieldName, query);
 
         string statementPointerFieldName = $"_delete{table.CSharpName}Statement";
         builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
         AppendDisposeStatement(statementPointerFieldName);
 
-        builder.AppendLine($"public void Delete{table.CSharpName}({primaryKeyColumn.CSharpType} primaryKeyValue)");
+        builder.AppendStart($"public void Delete{table.CSharpName}(");
+
+        isFirst = true;
+        foreach (var column in primaryKeys)
+        {
+            if (!isFirst)
+            {
+                builder.Append(" ,");
+            }
+            builder.Append($"{column.CSharpType} {column.CSharpParameterName}");
+            isFirst = false;
+        }
+        builder.Append(")");
+        builder.AppendLine();
+
         builder.AppendLine($"{{");
 
         builder.AppendLine($"    if({statementPointerFieldName} == IntPtr.Zero)");
@@ -180,7 +216,14 @@ public class DatabaseAccessGenerator
         builder.AppendLine($"    }}");
 
         builder.AppendLine();
-        BindValue(primaryKeyColumn, builder, statementPointerFieldName, 1, "primaryKeyValue", false);
+
+        int bindIndex = 1;
+        foreach (var column in primaryKeys)
+        {
+            BindValue(column, builder, statementPointerFieldName, bindIndex, column.CSharpParameterName, false);
+            bindIndex++;
+        }
+
         builder.AppendLine();
 
         builder.AppendLine($"    var stepResult = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
@@ -320,8 +363,26 @@ public class DatabaseAccessGenerator
 
     void GenerateGet(Table table, SourceBuilder builder)
     {
-        var primaryKeyColumn = table.Columns.Where(column => column.PrimaryKey).First();
-        var query = $"SELECT * FROM {table.SqlName} WHERE {primaryKeyColumn.SqlName} == ?;";
+        var primaryKeys =
+            table.PrimaryKey.Any() ?
+            table.PrimaryKey :
+            table.Columns.Where(column => column.PrimaryKey).ToList();
+
+        var queryBuilder = new StringBuilder();
+        queryBuilder.Append($"SELECT * FROM {table.SqlName} WHERE ");
+        bool isFirst = true;
+        foreach (var column in primaryKeys)
+        {
+            if (!isFirst)
+            {
+                queryBuilder.Append("AND ");
+            }
+            queryBuilder.Append($"{column.SqlName} == ? ");
+            isFirst = false;
+        }
+        queryBuilder.Append(";");
+
+        var query = queryBuilder.ToString();
         string getSqlBytesFieldName = $"_get{table.CSharpName}Bytes";
         AppendQueryBytesField(builder, getSqlBytesFieldName, query);
 
@@ -333,7 +394,21 @@ public class DatabaseAccessGenerator
 
         builder.AppendLine();
 
-        builder.AppendLine($"public bool Get{table.CSharpName}({table.CSharpName} row, {primaryKeyColumn.CSharpType} primaryKeyValue)");
+        builder.AppendStart($"public bool Get{table.CSharpName}({table.CSharpName} row, ");
+
+        isFirst = true;
+        foreach (var column in primaryKeys)
+        {
+            if (!isFirst)
+            {
+                builder.Append(" ,");
+            }
+            builder.Append($"{column.CSharpType} {column.CSharpParameterName}");
+            isFirst = false;
+        }
+        builder.Append(")");
+        builder.AppendLine();
+
         builder.AppendLine("{");
         builder.AppendLine($"    if ({statementPointerFieldName} == IntPtr.Zero)");
         builder.AppendLine("    {");
@@ -345,7 +420,12 @@ public class DatabaseAccessGenerator
         builder.AppendLine("    }");
         builder.AppendLine();
 
-        BindValue(primaryKeyColumn, builder, statementPointerFieldName, 1, "primaryKeyValue", false);
+        int bindIndex = 1;
+        foreach (var column in primaryKeys)
+        {
+            BindValue(column, builder, statementPointerFieldName, bindIndex, column.CSharpParameterName, false);
+            bindIndex++;
+        }
 
         builder.AppendLine($"    var result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
         builder.AppendLine();

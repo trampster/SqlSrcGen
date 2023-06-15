@@ -6,4 +6,7 @@ CREATE TABLE primary_key_table (name Text primary key, email Text);
 
 CREATE TABLE autoincrement_table (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT);
 
-CREATE TABLE autoincrement_not_null_table (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT); 
+CREATE TABLE autoincrement_not_null_table (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT);
+
+CREATE TABLE composit_primary_key (name Text, email Text, PRIMARY KEY (name, email)); 
+

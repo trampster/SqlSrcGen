@@ -22,6 +22,8 @@ namespace SqlSrcGen
         public bool PrimaryKey { get; set; }
         public bool AutoIncrement { get; set; }
         public bool Unique { get; set; }
+
+        public string CSharpParameterName => char.ToLowerInvariant(CSharpName[0]) + CSharpName.Substring(1, CSharpName.Length - 1);
     }
 
     public class Table
@@ -36,6 +38,12 @@ namespace SqlSrcGen
 
         public string CreateTable { get; set; } = "";
         public bool Tempory { get; set; }
+
+        public List<Column> PrimaryKey
+        {
+            get;
+            set;
+        } = new List<Column>();
     }
 
     public class DatabaseInfo
