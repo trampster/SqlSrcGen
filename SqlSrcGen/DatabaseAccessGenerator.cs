@@ -47,15 +47,21 @@ public class DatabaseAccessGenerator
             GenerateCreateTable(table, builder);
             GenerateGetAll(table, builder);
             GenerateInsert(table, builder);
-            if (table.Columns.Any(column => column.PrimaryKey))
+            var uniqueColumns = table.Columns.Where(column => column.PrimaryKey || column.Unique).ToList();
+            foreach (var column in uniqueColumns)
             {
-                GenerateGet(table, builder);
-                GenerateDelete(table, builder);
+                GenerateGet(table, new List<Column> { column }, builder);
+                GenerateDelete(table, new List<Column> { column }, builder);
             }
             if (table.PrimaryKey.Any())
             {
-                GenerateGet(table, builder);
-                GenerateDelete(table, builder);
+                GenerateGet(table, table.PrimaryKey, builder);
+                GenerateDelete(table, table.PrimaryKey, builder);
+            }
+            foreach (var uniqueColumnSets in table.Unique)
+            {
+                GenerateGet(table, uniqueColumnSets, builder);
+                GenerateDelete(table, uniqueColumnSets, builder);
             }
 
             GenerateDeleteAll(table, builder);
@@ -160,17 +166,12 @@ public class DatabaseAccessGenerator
         builder.AppendLine();
     }
 
-    void GenerateDelete(Table table, SourceBuilder builder)
+    void GenerateDelete(Table table, List<Column> columns, SourceBuilder builder)
     {
-        var primaryKeys =
-            table.PrimaryKey.Any() ?
-            table.PrimaryKey :
-            table.Columns.Where(column => column.PrimaryKey).ToList();
-
         var queryBuilder = new StringBuilder();
         queryBuilder.Append($"DELETE FROM {table.SqlName} WHERE ");
         bool isFirst = true;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             if (!isFirst)
             {
@@ -182,17 +183,17 @@ public class DatabaseAccessGenerator
         queryBuilder.Append(";");
 
         var query = queryBuilder.ToString();
-        string deleteAllSqlBytesFieldName = $"_delete{table.CSharpName}Bytes";
+        string deleteAllSqlBytesFieldName = $"_delete{table.CSharpName}Bytes{columns.Count()}";
         AppendQueryBytesField(builder, deleteAllSqlBytesFieldName, query);
 
-        string statementPointerFieldName = $"_delete{table.CSharpName}Statement";
+        string statementPointerFieldName = $"_delete{table.CSharpName}Statement{columns.Count()}";
         builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
         AppendDisposeStatement(statementPointerFieldName);
 
         builder.AppendStart($"public void Delete{table.CSharpName}(");
 
         isFirst = true;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             if (!isFirst)
             {
@@ -218,7 +219,7 @@ public class DatabaseAccessGenerator
         builder.AppendLine();
 
         int bindIndex = 1;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             BindValue(column, builder, statementPointerFieldName, bindIndex, column.CSharpParameterName, false);
             bindIndex++;
@@ -361,17 +362,12 @@ public class DatabaseAccessGenerator
         builder.AppendLine($"}}");
     }
 
-    void GenerateGet(Table table, SourceBuilder builder)
+    void GenerateGet(Table table, List<Column> columns, SourceBuilder builder)
     {
-        var primaryKeys =
-            table.PrimaryKey.Any() ?
-            table.PrimaryKey :
-            table.Columns.Where(column => column.PrimaryKey).ToList();
-
         var queryBuilder = new StringBuilder();
         queryBuilder.Append($"SELECT * FROM {table.SqlName} WHERE ");
         bool isFirst = true;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             if (!isFirst)
             {
@@ -383,10 +379,10 @@ public class DatabaseAccessGenerator
         queryBuilder.Append(";");
 
         var query = queryBuilder.ToString();
-        string getSqlBytesFieldName = $"_get{table.CSharpName}Bytes";
+        string getSqlBytesFieldName = $"_get{table.CSharpName}Bytes{columns.Count()}";
         AppendQueryBytesField(builder, getSqlBytesFieldName, query);
 
-        string statementPointerFieldName = $"_get{table.CSharpName}Statement";
+        string statementPointerFieldName = $"_get{table.CSharpName}Statement{columns.Count()}";
 
         builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
 
@@ -397,7 +393,7 @@ public class DatabaseAccessGenerator
         builder.AppendStart($"public bool Get{table.CSharpName}({table.CSharpName} row, ");
 
         isFirst = true;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             if (!isFirst)
             {
@@ -421,7 +417,7 @@ public class DatabaseAccessGenerator
         builder.AppendLine();
 
         int bindIndex = 1;
-        foreach (var column in primaryKeys)
+        foreach (var column in columns)
         {
             BindValue(column, builder, statementPointerFieldName, bindIndex, column.CSharpParameterName, false);
             bindIndex++;

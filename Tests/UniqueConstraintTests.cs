@@ -18,6 +18,7 @@ public class UniqueConstraintTests
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
+        Assert.That(databaseInfo.Tables[0].Columns[0].Unique, Is.True);
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
         Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
@@ -36,6 +37,7 @@ public class UniqueConstraintTests
         generator.ProcessSqlSchema("CREATE TABLE contact (distance INTEGER UNIQUE ON CONFLICT ROLLBACK);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
 
         // assert
+        Assert.That(databaseInfo.Tables[0].Columns[0].Unique, Is.True);
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("INTEGER"));
         Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("distance"));
         Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("long?"));

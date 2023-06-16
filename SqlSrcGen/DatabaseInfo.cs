@@ -44,6 +44,12 @@ namespace SqlSrcGen
             get;
             set;
         } = new List<Column>();
+
+        public List<List<Column>> Unique
+        {
+            get;
+            set;
+        } = new List<List<Column>>();
     }
 
     public class DatabaseInfo

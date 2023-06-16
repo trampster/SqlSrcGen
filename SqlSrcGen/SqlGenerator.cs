@@ -912,6 +912,7 @@ public class SqlGenerator : ISourceGenerator
                 return true;
             case "unique":
                 Increment(ref index, 1, tokens);
+                column.Unique = true;
                 ParseConflictClause(tokens, ref index);
                 return true;
             case "check":
@@ -938,46 +939,127 @@ public class SqlGenerator : ISourceGenerator
         }
     }
 
+    void ParseTableUniqueConstraint(
+        ref int index,
+        Span<Token> tokens,
+        List<Column> existingColumns,
+        Table table)
+    {
+        int startIndex = index;
+        Increment(ref index, 1, tokens);
+
+        var columns = ParseIndexColumns(ref index, tokens, existingColumns);
+
+        if (columns.Count == 1)
+        {
+            if (columns[0].column.Unique)
+            {
+                throw new InvalidSqlException("Column is already unique", columns[0].token);
+            }
+            if (columns[0].column.PrimaryKey)
+            {
+                throw new InvalidSqlException("Column is already unqiue because it's a primary key", columns[0].token);
+            }
+            columns[0].column.Unique = true;
+        }
+        else
+        {
+            var uniqueColumns = columns.Select(pair => pair.column).ToList();
+
+            if (table.PrimaryKey.SequenceEqual(uniqueColumns))
+            {
+                throw new InvalidSqlException("Columns are already unqiue because they are a primary key", tokens[startIndex]);
+            }
+            foreach (var existingUniqueColumns in table.Unique)
+            {
+                if (existingUniqueColumns.SequenceEqual(uniqueColumns))
+                {
+                    throw new InvalidSqlException("Columns are already unique", tokens[startIndex]);
+                }
+            }
+            table.Unique.Add(uniqueColumns);
+        }
+
+        ParseConflictClause(tokens, ref index);
+    }
+
+    List<(Token token, Column column)> ParseIndexColumns(
+        ref int index,
+        Span<Token> tokens,
+        List<Column> existingColumns)
+    {
+        List<(Token, Column)> columns = new();
+        var columnTokens = ReadList(tokens, ref index);
+        if (columnTokens.Count == 1)
+        {
+            var columnName = columnTokens[0].Value.ToLowerInvariant();
+            var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
+            if (existingColumn == null)
+            {
+                throw new InvalidSqlException($"Column {columnName} doesn't exist", columnTokens[0]);
+            }
+            columns.Add((columnTokens[0], existingColumn));
+            return columns;
+        }
+        if (columnTokens.Count > 1)
+        {
+            foreach (var columnToken in columnTokens)
+            {
+                var columnName = columnToken.Value.ToLowerInvariant();
+                var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
+                if (existingColumn == null)
+                {
+                    throw new InvalidSqlException($"Column {columnName} doesn't exist", columnTokens[0]);
+                }
+                columns.Add((columnToken, existingColumn));
+            }
+        }
+        return columns;
+    }
+
     void ParseTablePrimaryKeyConstraint(
         ref int index,
         Span<Token> tokens,
         List<Column> existingColumns,
         Table table)
     {
+        int startIndex = index;
         if (existingColumns.Any(existing => existing.PrimaryKey) || table.PrimaryKey.Any())
         {
             throw new InvalidSqlException("Table already has a primary key", tokens[index]);
         }
         Increment(ref index, 1, tokens);
+
         if (tokens.GetValue(index) != "key")
         {
             throw new InvalidSqlException("Expected 'key'", tokens[index]);
         }
         Increment(ref index, 1, tokens);
-        var columns = ReadList(tokens, ref index);
+
+        var columns = ParseIndexColumns(ref index, tokens, existingColumns);
+
         if (columns.Count == 1)
         {
-            var columnName = columns[0].Value.ToLowerInvariant();
-            var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
-            if (existingColumn == null)
+            if (columns[0].column.Unique)
             {
-                throw new InvalidSqlException($"Column {columnName} doesn't exist", columns[0]);
+                throw new InvalidSqlException("Column is already unique", columns[0].token);
             }
-            existingColumn.PrimaryKey = true;
+            columns[0].column.PrimaryKey = true;
         }
-        else if (columns.Count > 1)
+        else
         {
-            foreach (var column in columns)
+            var primaryKeyColumns = columns.Select(pair => pair.column).ToList();
+
+            foreach (var existingUniqueColumns in table.Unique)
             {
-                var columnName = column.Value.ToLowerInvariant();
-                var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
-                if (existingColumn == null)
+                if (existingUniqueColumns.SequenceEqual(primaryKeyColumns))
                 {
-                    throw new InvalidSqlException($"Column {columnName} doesn't exist", columns[0]);
+                    throw new InvalidSqlException("Columns are already unique", tokens[startIndex]);
                 }
-                table.PrimaryKey.Add(existingColumn);
             }
+            table.PrimaryKey.AddRange(columns.Select(column => column.column));
         }
+
         ParseConflictClause(tokens, ref index);
     }
 
@@ -997,7 +1079,8 @@ public class SqlGenerator : ISourceGenerator
                 ParseTablePrimaryKeyConstraint(ref index, tokens, existingColumns, table);
                 return true;
             case "unique":
-                throw new NotImplementedException();
+                ParseTableUniqueConstraint(ref index, tokens, existingColumns, table);
+                return true;
             case "check":
                 throw new NotImplementedException();
             case "foreign":

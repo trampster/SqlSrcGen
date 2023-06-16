@@ -8,5 +8,7 @@ CREATE TABLE autoincrement_table (id INTEGER PRIMARY KEY AUTOINCREMENT, email TE
 
 CREATE TABLE autoincrement_not_null_table (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT);
 
-CREATE TABLE composit_primary_key (name Text, email Text, PRIMARY KEY (name, email)); 
+CREATE TABLE composit_primary_key (name Text, email Text, PRIMARY KEY (name, email));
+
+CREATE TABLE unique_constraint (name Text UNIQUE, email Text, UNIQUE (name, email));
 
