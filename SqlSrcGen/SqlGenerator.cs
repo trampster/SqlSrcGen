@@ -916,8 +916,7 @@ public class SqlGenerator : ISourceGenerator
                 ParseConflictClause(tokens, ref index);
                 return true;
             case "check":
-                Increment(ref index, 1, tokens);
-                SkipBrackets(tokens, ref index);
+                ParseCheckConstraint(ref index, tokens);
                 return true;
             case "default":
                 PraseDefaultConstraint(tokens, ref index);
@@ -1082,12 +1081,23 @@ public class SqlGenerator : ISourceGenerator
                 ParseTableUniqueConstraint(ref index, tokens, existingColumns, table);
                 return true;
             case "check":
-                throw new NotImplementedException();
+                ParseCheckConstraint(ref index, tokens);
+                return true;
             case "foreign":
                 throw new NotImplementedException();
         }
 
         return false;
+    }
+
+    void ParseCheckConstraint(ref int index, Span<Token> tokens)
+    {
+        if (tokens.GetValue(index) != "check")
+        {
+            throw new InvalidSqlException("Check constraint must start with 'check'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        SkipBrackets(tokens, ref index);
     }
 
     void ParseColumnDefinition(ref int index, Span<Token> tokens, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
