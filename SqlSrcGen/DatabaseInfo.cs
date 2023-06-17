@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SqlSrcGen
 {
@@ -50,6 +51,34 @@ namespace SqlSrcGen
             get;
             set;
         } = new List<List<Column>>();
+
+        public bool IsUniqueBy(List<string> columns)
+        {
+            if (columns.Count == 1)
+            {
+                return Columns.Where(column => column.SqlName.ToLowerInvariant() == columns[0] && (column.PrimaryKey || column.Unique)).Any();
+            }
+            foreach (var uniqueColumns in Unique.Concat(new List<List<Column>> { PrimaryKey }))
+            {
+                if (columns.Count != uniqueColumns.Count)
+                {
+                    continue;
+                }
+                foreach (var column in columns)
+                {
+                    // check that this column exists
+
+                    var lowerName = column.ToLowerInvariant();
+
+                    if (!uniqueColumns.Any(column => column.SqlName.ToLowerInvariant() == lowerName))
+                    {
+                        continue;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
     }
 
     public class DatabaseInfo

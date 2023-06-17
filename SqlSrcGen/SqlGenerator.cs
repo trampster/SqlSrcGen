@@ -728,8 +728,58 @@ public class SqlGenerator : ISourceGenerator
         Increment(ref index, 1, tokens);
     }
 
-    void ParseReferencesConstraint(Span<Token> tokens, ref int index, List<Table> existingTables, bool isColumnConstraint, IDiagnosticsReporter diagnoticsReporter)
+    void CheckForeignKeyLists(List<Token> foreignColumns, List<Column> localColumns, int start, int index, Table foreignTable, bool isColumnConstraint, Span<Token> tokens)
     {
+        if (isColumnConstraint)
+        {
+            if (foreignColumns.Count == 0)
+            {
+                var foreignColumn = foreignTable.Columns.Where(column => column.PrimaryKey).SingleOrDefault();
+                if (foreignColumn == null)
+                {
+                    throw new InvalidSqlException($"Referenced table does not have a primary key column", tokens[index]);
+                }
+                return;
+            }
+            else if (foreignColumns.Count != 1)
+            {
+                throw new InvalidSqlException($"column constraints must reference a single column", tokens[index]);
+            }
+        }
+
+        if (foreignColumns.Count == 0)
+        {
+            if (foreignTable.PrimaryKey.Count != localColumns.Count)
+            {
+                throw new InvalidSqlException($"Referenced table doesn't have a matching foreign key", tokens[start]);
+            }
+            return;
+        }
+
+        if (localColumns.Count() != foreignColumns.Count())
+        {
+            throw new InvalidSqlException("Local and foreign column counts must match", tokens[start]);
+        }
+
+        foreach (var foreignColumn in foreignColumns)
+        {
+            var columnName = foreignColumn.Value.ToLowerInvariant();
+            var column = foreignTable.Columns.Where(column => column.SqlName == columnName).FirstOrDefault();
+            if (column == null)
+            {
+                throw new InvalidSqlException($"Referenced column {columnName} does not exist", foreignColumn);
+            }
+        }
+
+        if (!foreignTable.IsUniqueBy(foreignColumns.Select(column => column.Value).ToList()))
+        {
+            throw new InvalidSqlException($"Foreign table is not unique by these columns", tokens[start]);
+        }
+    }
+
+    void ParseForeignKeyClause(Span<Token> tokens, ref int index, List<Table> existingTables, List<Column> localColumns, bool isColumnConstraint, IDiagnosticsReporter diagnoticsReporter)
+    {
+        int start = index;
         if (tokens.GetValue(index) != "references")
         {
             throw new InvalidSqlException($"expected default constraint to begin with 'references'", tokens[index]);
@@ -743,28 +793,10 @@ public class SqlGenerator : ISourceGenerator
             throw new InvalidSqlException($"referenced table {tokens[index].Value} does not exist", tokens[index]);
         }
         Increment(ref index, 1, tokens);
-        var columnList = ReadList(tokens, ref index);
-        if (isColumnConstraint)
-        {
-            if (columnList.Count > 1)
-            {
-                throw new InvalidSqlException($"columns constraints cannot reference multiple columns", tokens[index]);
-            }
-            if (columnList.Count == 1)
-            {
-                var columnName = columnList[0].Value.ToLowerInvariant();
-                var column = foreignTable.Columns.Where(column => column.SqlName == columnName).FirstOrDefault();
-                if (column == null)
-                {
-                    throw new InvalidSqlException($"referenced column {columnName} does not exist", tokens[index]);
-                }
+        var foreignColumnList = ReadList(tokens, ref index);
 
-                if (!column.PrimaryKey && !column.Unique)
-                {
-                    throw new InvalidSqlException($"referenced column {columnName} must be primary key or unique", tokens[index]);
-                }
-            }
-        }
+
+        CheckForeignKeyLists(foreignColumnList, localColumns, start, index, foreignTable, isColumnConstraint, tokens);
 
         while (true)
         {
@@ -925,7 +957,7 @@ public class SqlGenerator : ISourceGenerator
                 PraseCollateConstraint(tokens, ref index, diagnoticsReporter, column);
                 return true;
             case "references":
-                ParseReferencesConstraint(tokens, ref index, existingTables, true, diagnoticsReporter);
+                ParseForeignKeyClause(tokens, ref index, existingTables, new List<Column> { column }, true, diagnoticsReporter);
                 return true;
             case "generated":
                 ParseGeneratedConstraint(tokens, ref index);
@@ -947,7 +979,7 @@ public class SqlGenerator : ISourceGenerator
         int startIndex = index;
         Increment(ref index, 1, tokens);
 
-        var columns = ParseIndexColumns(ref index, tokens, existingColumns);
+        var columns = ParseColumnList(ref index, tokens, existingColumns);
 
         if (columns.Count == 1)
         {
@@ -982,7 +1014,10 @@ public class SqlGenerator : ISourceGenerator
         ParseConflictClause(tokens, ref index);
     }
 
-    List<(Token token, Column column)> ParseIndexColumns(
+    /// <summary>
+    /// Parses a list of columns and checks they exist in the curren table
+    /// </summary>
+    List<(Token token, Column column)> ParseColumnList(
         ref int index,
         Span<Token> tokens,
         List<Column> existingColumns)
@@ -1016,6 +1051,29 @@ public class SqlGenerator : ISourceGenerator
         return columns;
     }
 
+    void ParseTableForeignKeyConstraint(
+        ref int index,
+        Span<Token> tokens,
+        Table table,
+        List<Table> existingTables,
+        IDiagnosticsReporter diagnosticsReporter)
+    {
+        if (tokens.GetValue(index) != "foreign")
+        {
+            throw new InvalidSqlException("Expected foreign key to start with 'foreign", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "key")
+        {
+            throw new InvalidSqlException("Expected 'key'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+
+        var localColumns = ParseColumnList(ref index, tokens, table.Columns);
+
+        ParseForeignKeyClause(tokens, ref index, existingTables, localColumns.Select(col => col.column).ToList(), false, diagnosticsReporter);
+    }
+
     void ParseTablePrimaryKeyConstraint(
         ref int index,
         Span<Token> tokens,
@@ -1035,7 +1093,7 @@ public class SqlGenerator : ISourceGenerator
         }
         Increment(ref index, 1, tokens);
 
-        var columns = ParseIndexColumns(ref index, tokens, existingColumns);
+        var columns = ParseColumnList(ref index, tokens, existingColumns);
 
         if (columns.Count == 1)
         {
@@ -1084,7 +1142,8 @@ public class SqlGenerator : ISourceGenerator
                 ParseCheckConstraint(ref index, tokens);
                 return true;
             case "foreign":
-                throw new NotImplementedException();
+                ParseTableForeignKeyConstraint(ref index, tokens, table, existingTables, diagnoticsReporter);
+                return true;
         }
 
         return false;
