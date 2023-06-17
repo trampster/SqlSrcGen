@@ -1024,29 +1024,16 @@ public class SqlGenerator : ISourceGenerator
     {
         List<(Token, Column)> columns = new();
         var columnTokens = ReadList(tokens, ref index);
-        if (columnTokens.Count == 1)
+
+        foreach (var columnToken in columnTokens)
         {
-            var columnName = columnTokens[0].Value.ToLowerInvariant();
+            var columnName = columnToken.Value.ToLowerInvariant();
             var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
             if (existingColumn == null)
             {
-                throw new InvalidSqlException($"Column {columnName} doesn't exist", columnTokens[0]);
+                throw new InvalidSqlException($"Column {columnName} doesn't exist", columnToken);
             }
-            columns.Add((columnTokens[0], existingColumn));
-            return columns;
-        }
-        if (columnTokens.Count > 1)
-        {
-            foreach (var columnToken in columnTokens)
-            {
-                var columnName = columnToken.Value.ToLowerInvariant();
-                var existingColumn = existingColumns.Where(existing => existing.SqlName.ToLowerInvariant() == columnName.ToLowerInvariant()).FirstOrDefault();
-                if (existingColumn == null)
-                {
-                    throw new InvalidSqlException($"Column {columnName} doesn't exist", columnTokens[0]);
-                }
-                columns.Add((columnToken, existingColumn));
-            }
+            columns.Add((columnToken, existingColumn));
         }
         return columns;
     }
