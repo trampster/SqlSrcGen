@@ -525,6 +525,24 @@ public class SqlGeneratorTests
     }
 
     [Test]
+    public void ProcessSqlSchema_Incomplete_DoesntCrash()
+    {
+        // arrange
+        string query = "CREATE TABLE new_table (name Integer p";
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        try
+        {
+            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        }
+        catch (InvalidSqlException)
+        {
+        }
+    }
+
+    [Test]
     public void ProcessSqlSchema_AutoincrementNotInteger_InvalidSqlException()
     {
         // arrange

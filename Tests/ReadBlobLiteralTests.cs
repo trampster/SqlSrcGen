@@ -10,7 +10,7 @@ public class ReadBlobLiteralTests
     public void ReadBlobLiteral_Valid_ParsedCorrectly(string literal)
     {
         // arrange
-        var generator = new SqlGenerator();
+        var generator = new Tokenizer();
         int position = 0;
         int lineIndex = 1;
         int characterInLineIndex = 0;
@@ -40,7 +40,7 @@ public class ReadBlobLiteralTests
     public void ReadBlobLiteral_Invalid_InvalidSqlException(string literal, string exceptionMessage, int charactorInLine)
     {
         // arrange
-        var generator = new SqlGenerator();
+        var generator = new Tokenizer();
         int position = 0;
         int lineIndex = 1;
         int characterInLineIndex = 0;

@@ -15,7 +15,7 @@ public class ReadNumericLiteralTests
     public void ParseNumericLiteral_Valid_ParsedCorrectly(string literal)
     {
         // arrange
-        var generator = new SqlGenerator();
+        var generator = new Tokenizer();
         int position = 0;
         int lineIndex = 1;
         int characterInLineIndex = 0;

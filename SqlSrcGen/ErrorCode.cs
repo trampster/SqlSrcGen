@@ -10,5 +10,7 @@ public enum ErrorCode
     // COLLATE on non text field
     SSG0003,
     // MATCH on references constrain is not supported in sqlite, it's parsed but has no effect
-    SSG0004
+    SSG0004,
+    // Not supported
+    SSG0005
 }
