@@ -166,8 +166,310 @@ public class ExpressionParser : Parser
 
         ParseFilterClause(ref index, tokens, table);
 
+        ParseOverClause(ref index, tokens, table);
+
         return true;
 
+    }
+
+    bool ParseOverClause(ref int index, Span<Token> tokens, Table table)
+    {
+        if (index >= tokens.Length)
+        {
+            return false;
+        }
+        if (tokens.GetValue(index) != "over")
+        {
+            return false;
+        }
+        Increment(ref index, 1, tokens);
+
+        if (tokens.GetValue(index) != "(")
+        {
+            if (tokens[index].TokenType != TokenType.Other)
+            {
+                throw new InvalidSqlException("Expected window-name", tokens[index]);
+            }
+            return true;
+        }
+
+        Increment(ref index, 1, tokens);
+
+        bool baseWindowNameDefined = false;
+        bool partitionByUsed = false;
+        bool orderByUsed = false;
+        bool finished = false;
+        while (!finished)
+        {
+            switch (tokens.GetValue(index))
+            {
+                case "partition":
+                    if (partitionByUsed)
+                    {
+                        throw new InvalidSqlException("Partition by clause already defined", tokens[index]);
+                    }
+                    PrasePartitionBy(ref index, tokens, table);
+                    partitionByUsed = true;
+                    break;
+                case "order":
+                    if (orderByUsed)
+                    {
+                        throw new InvalidSqlException("Order by clause already defined", tokens[index]);
+                    }
+                    ParseOrderBy(ref index, tokens, table);
+                    orderByUsed = true;
+                    break;
+                case "range":
+                case "rows":
+                case "groups":
+                    ParseFrameSpec(ref index, tokens, table);
+                    break;
+                case ")":
+                    index++;
+                    return true;
+                default:
+                    if (baseWindowNameDefined)
+                    {
+                        //can't define one again
+                        throw new InvalidSqlException("Unexpected token", tokens[index]);
+                    }
+                    if (tokens[index].TokenType != TokenType.Other)
+                    {
+                        throw new InvalidSqlException("Expected base-window-name", tokens[index]);
+                    }
+                    baseWindowNameDefined = true;
+                    break;
+            }
+        }
+        return true;
+    }
+
+    bool PrasePartitionBy(ref int index, Span<Token> tokens, Table table)
+    {
+        if (tokens.GetValue(index) != "partition")
+        {
+            throw new InvalidSqlException("Partition clause must start with partition", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "by")
+        {
+            throw new InvalidSqlException("expected 'by'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        while (true)
+        {
+            if (!Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected expr", tokens[index]);
+            }
+            if (tokens.GetValue(index) != ",")
+            {
+                break;
+            }
+        }
+        return true;
+    }
+
+    void ParseBetween(ref int index, Span<Token> tokens, Table table)
+    {
+        if (tokens.GetValue(index) != "between")
+        {
+            throw new InvalidSqlException("Expected BETWEEN", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "unbounded":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "preceding");
+                Increment(ref index, 1, tokens);
+                break;
+            case "current":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "row");
+                Increment(ref index, 1, tokens);
+                break;
+            default:
+                if (!Parse(ref index, tokens, table))
+                {
+                    throw new InvalidSqlException("Expected expr", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "preceding", "following");
+                Increment(ref index, 1, tokens);
+                break;
+        }
+        Expect(index, tokens, "and");
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "unbounded":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "following");
+                Increment(ref index, 1, tokens);
+                break;
+            case "current":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "row");
+                Increment(ref index, 1, tokens);
+                break;
+            default:
+                if (!Parse(ref index, tokens, table))
+                {
+                    throw new InvalidSqlException("Expected expr", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, "preceding", "following");
+                Increment(ref index, 1, tokens);
+                break;
+        }
+    }
+
+    void Expect(int index, Span<Token> tokens, params string[] values)
+    {
+        var value = tokens.GetValue(index);
+        if (!values.Contains(value))
+        {
+            throw new InvalidSqlException($"Expected {string.Join(" or ", values)}", tokens[index]);
+        }
+    }
+
+    bool ParseFrameSpec(ref int index, Span<Token> tokens, Table table)
+    {
+        if (index >= tokens.Length)
+        {
+            return false;
+        }
+        var value = tokens.GetValue(index);
+        if (value != "range" && value != "rows" && value != "groups")
+        {
+            return false;
+        }
+
+        Increment(ref index, 1, tokens);
+
+        switch (tokens.GetValue(index))
+        {
+            case "between":
+                ParseBetween(ref index, tokens, table);
+                break;
+            case "unbounded":
+                Increment(ref index, 1, tokens);
+                if (tokens.GetValue(index) != "preceding")
+                {
+                    throw new InvalidSqlException("Expected PRECEDING", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                break;
+            case "current":
+                Increment(ref index, 1, tokens);
+                if (tokens.GetValue(index) != "row")
+                {
+                    throw new InvalidSqlException("Expected ROW", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                break;
+            default:
+                if (!Parse(ref index, tokens, table))
+                {
+                    throw new InvalidSqlException("Expected expr", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                if (tokens.GetValue(index) != "preceding")
+                {
+                    throw new InvalidSqlException("Expected PRECEDING", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                break;
+        }
+
+        if (tokens.GetValue(index) == "exclude")
+        {
+            Increment(ref index, 1, tokens);
+            switch (tokens.GetValue(index))
+            {
+                case "no":
+                    Increment(ref index, 1, tokens);
+                    if (tokens.GetValue(index) != "others")
+                    {
+                        throw new InvalidSqlException("Expected OTHERS", tokens[index]);
+                    }
+                    Increment(ref index, 1, tokens);
+                    break;
+                case "current":
+                    Increment(ref index, 1, tokens);
+                    if (tokens.GetValue(index) != "row")
+                    {
+                        throw new InvalidSqlException("Expected ROW", tokens[index]);
+                    }
+                    Increment(ref index, 1, tokens);
+                    break;
+                case "group":
+                    Increment(ref index, 1, tokens);
+                    break;
+                case "ties":
+                    Increment(ref index, 1, tokens);
+                    break;
+                default:
+                    throw new InvalidSqlException($"Unexpected token", tokens[index]);
+            }
+        }
+        return true;
+    }
+
+    bool ParseOrderBy(ref int index, Span<Token> tokens, Table table)
+    {
+        if (tokens.GetValue(index) != "order")
+        {
+            throw new InvalidSqlException("Order by clause must start with 'order'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "by")
+        {
+            throw new InvalidSqlException("expected 'by'", tokens[index]);
+        }
+        Increment(ref index, 1, tokens);
+        while (true)
+        {
+            if (!ParseOrderingTerm(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected ordering term", tokens[index]);
+            }
+            if (tokens.GetValue(index) != ",")
+            {
+                break;
+            }
+        }
+        return true;
+    }
+
+    bool ParseOrderingTerm(ref int index, Span<Token> tokens, Table table)
+    {
+        if (!Parse(ref index, tokens, table))
+        {
+            return false;
+        }
+        if (tokens.GetValue(index) == "colate")
+        {
+            Increment(ref index, 2, tokens);
+        }
+        var value = tokens.GetValue(index);
+        if (value == "asc" || value == "desc")
+        {
+            Increment(ref index, 1, tokens);
+        }
+        value = tokens.GetValue(index);
+        if (value == "nulls")
+        {
+            Increment(ref index, 1, tokens);
+            value = tokens.GetValue(index);
+            if (value != "first" && value != "last")
+            {
+                throw new InvalidSqlException("expected FIRST or LAST", tokens[index]);
+            }
+            Increment(ref index, 1, tokens);
+        }
+        return true;
     }
 
     bool ParseFilterClause(ref int index, Span<Token> tokens, Table table)

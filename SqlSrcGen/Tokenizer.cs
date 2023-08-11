@@ -195,7 +195,7 @@ public class Tokenizer
                 return true;
             case 'a':
             case 'A':
-                if (text.Length > 2 && char.ToLowerInvariant(text[1]) == 'n' && char.ToLowerInvariant(text[2]) == 'd')
+                if (text.Length > 4 && char.ToLowerInvariant(text[1]) == 'n' && char.ToLowerInvariant(text[2]) == 'd' && char.IsWhiteSpace(text[3]))
                 {
                     position += 3;
                     characterInLineIndex += 3;
@@ -207,7 +207,7 @@ public class Tokenizer
                 return false;
             case 'o':
             case 'O':
-                if (text.Length > 1 && char.ToLowerInvariant(text[1]) == 'r')
+                if (text.Length > 2 && char.ToLowerInvariant(text[1]) == 'r' && char.IsWhiteSpace(text[2]))
                 {
                     position += 2;
                     characterInLineIndex += 2;
@@ -223,6 +223,7 @@ public class Tokenizer
                 return false;
         }
     }
+
 
     ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
     {

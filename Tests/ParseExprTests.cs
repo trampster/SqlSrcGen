@@ -267,6 +267,18 @@ public class ParseExprTests
     [TestCase("instr('firstname','name')")]
     [TestCase("COUNT(DISTINCT salary)")]
     [TestCase("COUNT(*) FILTER (WHERE salary > 50000)")]
+    [TestCase("min(salary) over(partition by type)")]
+    [TestCase("min(salary) over(partition by type order by salary)")]
+    [TestCase("min(salary) over(range unbounded preceding exclude no others)")]
+    [TestCase("min(salary) over(range unbounded preceding exclude current row)")]
+    [TestCase("min(salary) over(range unbounded preceding exclude group)")]
+    [TestCase("min(salary) over(range unbounded preceding exclude ties)")]
+    [TestCase("min(salary) over(range unbounded preceding)")]
+    [TestCase("min(salary) over(range current row)")]
+    [TestCase("min(salary) over(range current row)")]
+    [TestCase("min(salary) over(rows current row)")]
+    [TestCase("min(salary) over(groups current row)")]
+    [TestCase("min(salary) over(order by salary asc nulls first)")]
     public void Parse_Function_Parsed(string literalValue)
     {
         // arrange
@@ -276,7 +288,8 @@ public class ParseExprTests
         {
             Columns = new List<Column>
             {
-                new Column(){SqlName = "salary"}
+                new Column(){SqlName = "salary"},
+                new Column(){SqlName = "type"}
             }
         };
 
