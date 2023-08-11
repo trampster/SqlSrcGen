@@ -302,4 +302,28 @@ public class ParseExprTests
         Assert.That(result, Is.True);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
+
+    [TestCase("(min(salary), abs(12.5), COUNT(*))")]
+    public void Parse_ExprList_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
 }

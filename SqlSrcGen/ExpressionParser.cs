@@ -334,6 +334,12 @@ public class ExpressionParser : Parser
         }
     }
 
+    bool IsOneOf(int index, Span<Token> tokens, params string[] values)
+    {
+        var value = tokens.GetValue(index);
+        return values.Contains(value);
+    }
+
     bool ParseFrameSpec(ref int index, Span<Token> tokens, Table table)
     {
         if (index >= tokens.Length)
@@ -533,7 +539,15 @@ public class ExpressionParser : Parser
                 throw new NotImplementedException();
             case "(":
                 // could be select statement or and expression list
-                throw new NotImplementedException();
+                Increment(ref index, 1, tokens);
+                if (IsOneOf(index, tokens, "with", "select", "values"))
+                {
+                    ParseSelectStatement(ref index, tokens, table);
+                    return true;
+                }
+                index--;
+                ParseExprList(ref index, tokens, table);
+                return true;
             case "case":
                 throw new NotImplementedException();
             case "raise":
@@ -556,6 +570,29 @@ public class ExpressionParser : Parser
         }
     }
 
+    void ParseExprList(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "(");
+        Increment(ref index, 1, tokens);
+        while (true)
+        {
+            Parse(ref index, tokens, table);
+            if (tokens.GetValue(index) == ",")
+            {
+                Increment(ref index, 1, tokens);
+                continue;
+            }
+            Expect(index, tokens, ")");
+            index++;
+            return;
+        }
+    }
+
+    void ParseSelectStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        throw new NotImplementedException("Select will be implemented after create table");
+    }
+
     void ParseColumnIdentifier(ref int index, Span<Token> tokens, Table table)
     {
         int start = index;
@@ -567,7 +604,7 @@ public class ExpressionParser : Parser
             var value = tokens.GetValue(index);
             if (!table.Columns.Any(column => column.SqlName.ToLowerInvariant() == firstPart))
             {
-                throw new InvalidSqlException("Column doesn't exist in the current table", tokens[index]);
+                throw new InvalidSqlException($"Column '{firstPart}' doesn't exist in the current table", tokens[index]);
             }
             index++;
             return;
