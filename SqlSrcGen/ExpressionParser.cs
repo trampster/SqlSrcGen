@@ -7,12 +7,17 @@ namespace SqlSrcGen;
 public class ExpressionParser : Parser
 {
     readonly LiteralValueParser _literalValueParser;
+    readonly TypeNameParser _typeNameParser;
     readonly DatabaseInfo _databaseInfo;
 
-    public ExpressionParser(DatabaseInfo databaseInfo, LiteralValueParser literalValueParser)
+    public ExpressionParser(
+        DatabaseInfo databaseInfo,
+        LiteralValueParser literalValueParser,
+        TypeNameParser typeNameParser)
     {
         _databaseInfo = databaseInfo;
         _literalValueParser = literalValueParser;
+        _typeNameParser = typeNameParser;
     }
 
     public bool Parse(ref int index, Span<Token> tokens, Table table)
@@ -534,7 +539,8 @@ public class ExpressionParser : Parser
         switch (tokens.GetValue(index))
         {
             case "cast":
-                throw new NotImplementedException();
+                ParseCastStatement(ref index, tokens, table);
+                return true;
             case "exists":
                 throw new NotImplementedException();
             case "(":
@@ -568,6 +574,21 @@ public class ExpressionParser : Parser
                 ParseColumnIdentifier(ref index, tokens, table);
                 return true;
         }
+    }
+
+    void ParseCastStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "cast");
+        Increment(ref index, 1, tokens);
+        Expect(index, tokens, "(");
+        Increment(ref index, 1, tokens);
+        Parse(ref index, tokens, table);
+        Expect(index, tokens, "as");
+        Increment(ref index, 1, tokens);
+        _typeNameParser.ParseTypeName(ref index, tokens, out string _);
+        Expect(index, tokens, ")");
+        index++;
+        return;
     }
 
     void ParseExprList(ref int index, Span<Token> tokens, Table table)

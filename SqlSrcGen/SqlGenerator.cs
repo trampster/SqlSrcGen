@@ -13,6 +13,8 @@ namespace SqlSrcGen;
 public class SqlGenerator : Parser, ISourceGenerator
 {
     readonly LiteralValueParser _literalValueParser;
+    readonly NumberParser _numberParser;
+    readonly TypeNameParser _typeNameParser;
     readonly ExpressionParser _expressionParser;
     readonly List<IParser> _parsers;
     readonly DatabaseInfo _databaseInfo;
@@ -24,10 +26,14 @@ public class SqlGenerator : Parser, ISourceGenerator
         //     System.Threading.Thread.Sleep(500);
         _databaseInfo = new DatabaseInfo();
         _literalValueParser = new LiteralValueParser();
-        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser);
+        _numberParser = new NumberParser();
+        _typeNameParser = new TypeNameParser();
+        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser);
         _parsers = new List<IParser>();
         _parsers.Add(_literalValueParser);
         _parsers.Add(_expressionParser);
+        _parsers.Add(_numberParser);
+        _parsers.Add(_typeNameParser);
         _tokenizer = new Tokenizer();
     }
 
@@ -343,55 +349,6 @@ public class SqlGenerator : Parser, ISourceGenerator
         return type;
     }
 
-    int ParseType(Span<Token> typeDefinition, out string type)
-    {
-        AssertEnoughTokens(typeDefinition, 1);
-        StringBuilder typeBuilder = new StringBuilder();
-        typeBuilder.Append(typeDefinition[0].Value);
-        int numericLiteralCount = 0;
-        bool lastTokenNumericLiteral = false;
-        if (typeDefinition[1].Value == "(")
-        {
-            typeBuilder.Append("(");
-            AssertEnoughTokens(typeDefinition, 2);
-            for (int index = 2; index < typeDefinition.Length; index++)
-            {
-                var token = typeDefinition[index];
-                if (token.Value == ")")
-                {
-                    typeBuilder.Append(token.Value);
-
-                    type = typeBuilder.ToString();
-                    return index + 1;
-                }
-                if (lastTokenNumericLiteral)
-                {
-                    lastTokenNumericLiteral = false;
-                    if (token.Value != ",")
-                    {
-                        throw new InvalidSqlException("expected ',''", token);
-                    }
-                    typeBuilder.Append(",");
-                    continue;
-                }
-                if (!long.TryParse(token.Value, out long value))
-                {
-                    throw new InvalidSqlException("expected signed numeric-literal", token);
-                }
-                lastTokenNumericLiteral = true;
-                typeBuilder.Append(token.Value);
-                numericLiteralCount++;
-                if (numericLiteralCount > 2)
-                {
-                    throw new InvalidSqlException("type-name can't have more than two numeric-literals", token);
-                }
-            }
-            throw new InvalidSqlException("Ran out of tokens trying to parse type", typeDefinition[0]);
-        }
-        type = typeBuilder.ToString();
-        return 1;
-    }
-
     void ParseConflictClause(Span<Token> columnDefinition, ref int index)
     {
         AssertEnoughTokens(columnDefinition, index);
@@ -558,14 +515,8 @@ public class SqlGenerator : Parser, ISourceGenerator
 
         var token = columnDefinition[index];
         // signed number
-        if (token.Value == "+" || token.Value == "-")
+        if (_numberParser.ParseSignedNumber(ref index, columnDefinition))
         {
-            Increment(ref index, 1, columnDefinition);
-            if (columnDefinition[index].TokenType != TokenType.NumericLiteral)
-            {
-                throw new InvalidSqlException($"missing numeric literal in signed number", columnDefinition[index]);
-            }
-            index++;
             return;
         }
 
@@ -1098,7 +1049,7 @@ public class SqlGenerator : Parser, ISourceGenerator
             var token = tokens[index];
             if (token.Value != "," && token.Value != ")")
             {
-                index += ParseType(tokens.Slice(index), out string type);
+                _typeNameParser.ParseTypeName(ref index, tokens, out string type);
                 column.SqlType = type;
             }
         }

@@ -7,6 +7,7 @@ public class ParseExprTests
     readonly LiteralValueParser _literalValueParser;
     readonly DatabaseInfo _databaseInfo;
     readonly ExpressionParser _expressionParser;
+    readonly TypeNameParser _typeNameParser;
     readonly Query _query;
 
     public ParseExprTests()
@@ -14,7 +15,8 @@ public class ParseExprTests
         _databaseInfo = new DatabaseInfo();
         _query = new Query();
         _literalValueParser = new LiteralValueParser();
-        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser);
+        _typeNameParser = new TypeNameParser();
+        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser);
         _expressionParser.Query = _query;
     }
 
@@ -305,6 +307,30 @@ public class ParseExprTests
 
     [TestCase("(min(salary), abs(12.5), COUNT(*))")]
     public void Parse_ExprList_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
+
+    [TestCase("CAST (123 as FLOAT(12, 7))")]
+    public void Parse_Cast_Parsed(string literalValue)
     {
         // arrange
         var tokenizer = new Tokenizer();

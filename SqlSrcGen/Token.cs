@@ -4,6 +4,8 @@ public enum TokenType
     NumericLiteral,
     BlobLiteral,
     Operator,
+    Symbol,
+    Keyword,
     Other
 }
 
