@@ -542,13 +542,16 @@ public class ExpressionParser : Parser
                 ParseCastStatement(ref index, tokens, table);
                 return true;
             case "exists":
-                throw new NotImplementedException();
+                PraseExistsStatement(ref index, tokens, table);
+                return true;
             case "(":
                 // could be select statement or and expression list
                 Increment(ref index, 1, tokens);
                 if (IsOneOf(index, tokens, "with", "select", "values"))
                 {
                     ParseSelectStatement(ref index, tokens, table);
+                    Expect(index, tokens, ")");
+                    index++;
                     return true;
                 }
                 index--;
@@ -574,6 +577,22 @@ public class ExpressionParser : Parser
                 ParseColumnIdentifier(ref index, tokens, table);
                 return true;
         }
+    }
+
+    void PraseExistsStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "exists");
+        Increment(ref index, 1, tokens);
+        ParseBracketsSelectStatement(ref index, tokens, table);
+    }
+
+    void ParseBracketsSelectStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "(");
+        Increment(ref index, 1, tokens);
+        ParseSelectStatement(ref index, tokens, table);
+        Expect(index, tokens, ")");
+        index++;
     }
 
     void ParseCastStatement(ref int index, Span<Token> tokens, Table table)
