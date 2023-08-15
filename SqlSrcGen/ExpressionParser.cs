@@ -8,16 +8,19 @@ public class ExpressionParser : Parser
 {
     readonly LiteralValueParser _literalValueParser;
     readonly TypeNameParser _typeNameParser;
+    readonly CollationParser _collationParser;
     readonly DatabaseInfo _databaseInfo;
 
     public ExpressionParser(
         DatabaseInfo databaseInfo,
         LiteralValueParser literalValueParser,
-        TypeNameParser typeNameParser)
+        TypeNameParser typeNameParser,
+        CollationParser collationParser)
     {
         _databaseInfo = databaseInfo;
         _literalValueParser = literalValueParser;
         _typeNameParser = typeNameParser;
+        _collationParser = collationParser;
     }
 
     public bool Parse(ref int index, Span<Token> tokens, Table table)
@@ -29,6 +32,15 @@ public class ExpressionParser : Parser
         if (ParseBooleanOperator(ref index, tokens))
         {
             return Parse(ref index, tokens, table);
+        }
+        if (index >= tokens.Length)
+        {
+            return true;
+        }
+        if (tokens.GetValue(index) == "collate")
+        {
+            _collationParser.ParseCollationStatement(ref index, tokens);
+            return true;
         }
         return true;
     }
@@ -327,15 +339,6 @@ public class ExpressionParser : Parser
                 Expect(index, tokens, "preceding", "following");
                 Increment(ref index, 1, tokens);
                 break;
-        }
-    }
-
-    void Expect(int index, Span<Token> tokens, params string[] values)
-    {
-        var value = tokens.GetValue(index);
-        if (!values.Contains(value))
-        {
-            throw new InvalidSqlException($"Expected {string.Join(" or ", values)}", tokens[index]);
         }
     }
 

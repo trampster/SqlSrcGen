@@ -16,6 +16,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     readonly NumberParser _numberParser;
     readonly TypeNameParser _typeNameParser;
     readonly ExpressionParser _expressionParser;
+    readonly CollationParser _collationParser;
     readonly List<IParser> _parsers;
     readonly DatabaseInfo _databaseInfo;
     readonly Tokenizer _tokenizer;
@@ -28,12 +29,14 @@ public class SqlGenerator : Parser, ISourceGenerator
         _literalValueParser = new LiteralValueParser();
         _numberParser = new NumberParser();
         _typeNameParser = new TypeNameParser();
-        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser);
+        _collationParser = new CollationParser();
+        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser, _collationParser);
         _parsers = new List<IParser>();
         _parsers.Add(_literalValueParser);
         _parsers.Add(_expressionParser);
         _parsers.Add(_numberParser);
         _parsers.Add(_typeNameParser);
+        _parsers.Add(_collationParser);
         _tokenizer = new Tokenizer();
     }
 
@@ -65,6 +68,7 @@ public class SqlGenerator : Parser, ISourceGenerator
             builder.IncreaseIndent();
 
             var reporter = new DiagnosticsReporter(context);
+
             reporter.Path = additionalFiles.First().Path;
             try
             {
@@ -109,6 +113,10 @@ public class SqlGenerator : Parser, ISourceGenerator
 
     public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo, IDiagnosticsReporter reporter)
     {
+        foreach (var parser in _parsers)
+        {
+            parser.DiagnosticsReporter = reporter;
+        }
         var tokensList = _tokenizer.Tokenize(schemaText);
         var tokens = tokensList.ToArray().AsSpan();
         while (tokens.Length > 0)
@@ -479,32 +487,6 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    void PraseCollateConstraint(Span<Token> columnDefinition, ref int index, IDiagnosticsReporter reporter, Column column)
-    {
-        if (columnDefinition.GetValue(index) != "collate")
-        {
-            throw new InvalidSqlException($"expected collate constraint to begin with 'collate'", columnDefinition[index]);
-        }
-        Increment(ref index, 1, columnDefinition);
-
-        var collation = columnDefinition.GetValue(index);
-        switch (collation)
-        {
-            case "nocase":
-            case "binary":
-            case "rtrim":
-                break;
-            default:
-                reporter.Warning(ErrorCode.SSG0002, "Collation types other than nocase, binary and rtrim require custom collation creation", columnDefinition[index]);
-                break;
-        }
-        if (column.TypeAffinity != TypeAffinity.TEXT)
-        {
-            reporter.Warning(ErrorCode.SSG0003, "Collation only affects Text columns", columnDefinition[index]);
-        }
-        Increment(ref index, 1, columnDefinition);
-    }
-
     void PraseDefaultConstraint(Span<Token> columnDefinition, ref int index)
     {
         if (columnDefinition.GetValue(index) != "default")
@@ -831,7 +813,7 @@ public class SqlGenerator : Parser, ISourceGenerator
                 PraseDefaultConstraint(tokens, ref index);
                 return true;
             case "collate":
-                PraseCollateConstraint(tokens, ref index, diagnoticsReporter, column);
+                _collationParser.PraseCollateConstraint(tokens, ref index, column);
                 return true;
             case "references":
                 ParseForeignKeyClause(tokens, ref index, existingTables, new List<Column> { column }, true, diagnoticsReporter);

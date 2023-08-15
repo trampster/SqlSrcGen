@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace SqlSrcGen;
 
@@ -9,10 +10,23 @@ public interface IParser
         get;
         set;
     }
+
+    public IDiagnosticsReporter DiagnosticsReporter
+    {
+        get;
+        set;
+    }
 }
+
 public abstract class Parser : IParser
 {
     public Query Query
+    {
+        get;
+        set;
+    }
+
+    public IDiagnosticsReporter DiagnosticsReporter
     {
         get;
         set;
@@ -33,6 +47,15 @@ public abstract class Parser : IParser
         if (index > tokens.Length - 1)
         {
             throw new InvalidSqlException("Ran out of tokens to parse command.", tokens[tokens.Length - 1]);
+        }
+    }
+
+    protected void Expect(int index, Span<Token> tokens, params string[] values)
+    {
+        var value = tokens.GetValue(index);
+        if (!values.Contains(value))
+        {
+            throw new InvalidSqlException($"Expected {string.Join(" or ", values)}", tokens[index]);
         }
     }
 }

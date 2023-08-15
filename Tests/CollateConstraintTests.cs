@@ -84,7 +84,7 @@ public class CollateConstraintTests
         // assert
         Assert.That(capturedToken, Is.Not.Null);
         Assert.That(capturedToken!.Line, Is.EqualTo(0));
-        Assert.That(capturedToken!.CharacterInLine, Is.EqualTo(43));
+        Assert.That(capturedToken!.CharacterInLine, Is.EqualTo(35));
         Assert.That(capturedMessage, Is.EqualTo("Collation only affects Text columns"));
         Assert.That(capturedErrorCode, Is.EqualTo(ErrorCode.SSG0003));
     }

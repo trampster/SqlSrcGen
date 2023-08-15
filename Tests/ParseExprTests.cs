@@ -1,3 +1,4 @@
+using Moq;
 using SqlSrcGen;
 
 namespace Tests;
@@ -8,6 +9,7 @@ public class ParseExprTests
     readonly DatabaseInfo _databaseInfo;
     readonly ExpressionParser _expressionParser;
     readonly TypeNameParser _typeNameParser;
+    readonly CollationParser _collationParser;
     readonly Query _query;
 
     public ParseExprTests()
@@ -16,7 +18,9 @@ public class ParseExprTests
         _query = new Query();
         _literalValueParser = new LiteralValueParser();
         _typeNameParser = new TypeNameParser();
-        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser);
+        _collationParser = new CollationParser();
+        _collationParser.DiagnosticsReporter = Mock.Of<IDiagnosticsReporter>();
+        _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser, _collationParser);
         _expressionParser.Query = _query;
     }
 
@@ -342,6 +346,24 @@ public class ParseExprTests
                 new Column(){SqlName = "salary"},
             }
         };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
+
+    [TestCase("1234 COLLATE nocase")] //TODO: collate would be part of a select normally, update test once we support select
+    public void Parse_Collate_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table();
 
         int index = 0;
 
