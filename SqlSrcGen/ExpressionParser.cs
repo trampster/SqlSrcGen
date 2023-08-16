@@ -37,12 +37,56 @@ public class ExpressionParser : Parser
         {
             return true;
         }
-        if (tokens.GetValue(index) == "collate")
+        var tokenValue = tokens.GetValue(index);
+        switch (tokenValue)
         {
-            _collationParser.ParseCollationStatement(ref index, tokens);
-            return true;
+            case "collate":
+                _collationParser.ParseCollationStatement(ref index, tokens);
+                return true;
+            case "not":
+                ParseNotStatement(ref index, tokens, table);
+                return true;
+            case "like":
+                ParseLikeStatement(ref index, tokens, table);
+                return true;
+            default:
+                return true;
         }
-        return true;
+    }
+
+    void ParseNotStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "not");
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "like":
+                ParseLikeStatement(ref index, tokens, table);
+                return;
+        }
+    }
+
+    void ParseLikeStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "like");
+        Increment(ref index, 1, tokens);
+        if (!Parse(ref index, tokens, table))
+        {
+            throw new InvalidSqlException("Expected expression", tokens[index]);
+        }
+        if (IsEnd(index, tokens))
+        {
+            return;
+        }
+        if (tokens.GetValue(index) == "escape")
+        {
+            Increment(ref index, 1, tokens);
+            if (!Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected expression", tokens[index]);
+            }
+            return;
+        }
     }
 
     public bool ParseBooleanOperator(ref int index, Span<Token> tokens)

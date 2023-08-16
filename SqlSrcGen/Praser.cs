@@ -58,4 +58,9 @@ public abstract class Parser : IParser
             throw new InvalidSqlException($"Expected {string.Join(" or ", values)}", tokens[index]);
         }
     }
+
+    protected bool IsEnd(int index, Span<Token> tokens)
+    {
+        return index >= tokens.Length;
+    }
 }
