@@ -49,6 +49,12 @@ public class ExpressionParser : Parser
             case "like":
                 ParseLikeStatement(ref index, tokens, table);
                 return true;
+            case "glob":
+            case "regexp":
+            case "match":
+                Increment(ref index, 1, tokens);
+                Parse(ref index, tokens, table);
+                return true;
             default:
                 return true;
         }
@@ -62,6 +68,12 @@ public class ExpressionParser : Parser
         {
             case "like":
                 ParseLikeStatement(ref index, tokens, table);
+                return;
+            case "glob":
+            case "regexp":
+            case "match":
+                Increment(ref index, 1, tokens);
+                Parse(ref index, tokens, table);
                 return;
         }
     }
