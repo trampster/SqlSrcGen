@@ -55,6 +55,10 @@ public class ExpressionParser : Parser
                 Increment(ref index, 1, tokens);
                 Parse(ref index, tokens, table);
                 return true;
+            case "isnull":
+            case "notnull":
+                index++;
+                return true;
             default:
                 return true;
         }
@@ -74,6 +78,9 @@ public class ExpressionParser : Parser
             case "match":
                 Increment(ref index, 1, tokens);
                 Parse(ref index, tokens, table);
+                return;
+            case "null":
+                index++;
                 return;
         }
     }
