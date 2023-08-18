@@ -23,13 +23,13 @@ public class ExpressionParser : Parser
         _collationParser = collationParser;
     }
 
-    public bool Parse(ref int index, Span<Token> tokens, Table table)
+    public bool Parse(ref int index, Span<Token> tokens, Table table, bool includeBinaryOperators = true)
     {
         if (!ParseExpr(ref index, tokens, table))
         {
             return false;
         }
-        if (ParseBooleanOperator(ref index, tokens))
+        if (includeBinaryOperators && ParseBooleanOperator(ref index, tokens))
         {
             return Parse(ref index, tokens, table);
         }
@@ -62,8 +62,27 @@ public class ExpressionParser : Parser
             case "is":
                 ParseIsStatement(ref index, tokens, table);
                 return true;
+            case "between":
+                ParseBetweenStatement(ref index, tokens, table);
+                return true;
             default:
                 return true;
+        }
+    }
+
+    void ParseBetweenStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "between");
+        Increment(ref index, 1, tokens);
+        if (!Parse(ref index, tokens, table, false))
+        {
+            throw new InvalidSqlException("Expected expression", tokens[index]);
+        }
+        Expect(index, tokens, "and");
+        Increment(ref index, 1, tokens);
+        if (!Parse(ref index, tokens, table))
+        {
+            throw new InvalidSqlException("Expected expression", tokens[index]);
         }
     }
 
@@ -102,6 +121,9 @@ public class ExpressionParser : Parser
                 return;
             case "null":
                 index++;
+                return;
+            case "between":
+                ParseBetweenStatement(ref index, tokens, table);
                 return;
         }
     }
