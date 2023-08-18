@@ -455,4 +455,30 @@ public class ParseExprTests
         Assert.That(result, Is.True);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
+
+    [TestCase("salary is distinct from @master_id")]
+    [TestCase("salary is not distinct from @master_id")]
+    [TestCase("salary is not @master_id")]
+    public void Parse_Is_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
 }

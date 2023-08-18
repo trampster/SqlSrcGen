@@ -59,9 +59,30 @@ public class ExpressionParser : Parser
             case "notnull":
                 index++;
                 return true;
+            case "is":
+                ParseIsStatement(ref index, tokens, table);
+                return true;
             default:
                 return true;
         }
+    }
+
+    void ParseIsStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "is");
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) == "not")
+        {
+            Increment(ref index, 1, tokens);
+        }
+        if (tokens.GetValue(index) == "distinct")
+        {
+            Increment(ref index, 1, tokens);
+            Expect(index, tokens, "from");
+            Increment(ref index, 1, tokens);
+        }
+
+        Parse(ref index, tokens, table);
     }
 
     void ParseNotStatement(ref int index, Span<Token> tokens, Table table)
