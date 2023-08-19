@@ -735,11 +735,6 @@ public class ExpressionParser : Parser
                 Increment(ref index, 1, tokens);
                 return Parse(ref index, tokens, table);
             default:
-                if (index >= tokens.Length && tokens.GetValue(index + 1) == "(")
-                {
-                    //function
-                    throw new NotImplementedException();
-                }
                 //column identifier
                 ParseColumnIdentifier(ref index, tokens, table);
                 return true;
