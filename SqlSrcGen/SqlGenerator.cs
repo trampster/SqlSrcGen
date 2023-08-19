@@ -873,8 +873,102 @@ public class SqlGenerator : Parser, ISourceGenerator
         ParseConflictClause(tokens, ref index);
     }
 
+
     /// <summary>
-    /// Parses a list of columns and checks they exist in the curren table
+    /// Parses a list of indexed columns and checks they exist in the current table
+    /// </summary>
+    List<(Token token, Column column)> ParseIndexedColumnList(
+        ref int index,
+        Span<Token> tokens,
+        Table table)
+    {
+        Expect(index, tokens, "(");
+        Increment(ref index, 1, tokens);
+        bool finished = false;
+        List<(Token token, Column column)> columns = new();
+        while (!finished)
+        {
+            switch (tokens.GetValue(index))
+            {
+                case ",":
+                    Increment(ref index, 1, tokens);
+                    break;
+                case ")":
+                    index++;
+                    finished = true;
+                    break;
+                default:
+                    var column = ParseIndexedColumn(ref index, tokens, table);
+                    if (column != null)
+                    {
+                        columns.Add(column.Value);
+                    }
+                    break;
+            }
+        }
+        return columns;
+    }
+
+    bool IsExistingColumn(Token token, Table table)
+    {
+        if (token.TokenType == TokenType.Other)
+        {
+            var tokenValue = token.Value.ToLowerInvariant();
+            return table.Columns.Any(column => column.SqlName.ToLowerInvariant() == tokenValue);
+        }
+        return false;
+    }
+
+    (Token token, Column column)? ParseIndexedColumn(ref int index, Span<Token> tokens, Table table)
+    {
+        AssertEnoughTokens(tokens, index);
+        Token token = null;
+        Column column = null;
+        bool expression = false;
+        if (IsExistingColumn(tokens[index], table))
+        {
+            token = tokens[index];
+            var tokenValue = token.Value.ToLowerInvariant();
+            column = table.Columns.First(column => column.SqlName.ToLowerInvariant() == tokenValue);
+            index++;
+        }
+        else
+        {
+            if (!_expressionParser.Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected column name or expression", tokens[index]);
+            }
+            expression = true;
+        }
+        if (!IsEnd(index, tokens))
+        {
+
+            if (tokens.GetValue(index) == "collate")
+            {
+                _collationParser.ParseCollationStatement(ref index, tokens);
+            }
+
+            if (!IsEnd(index, tokens))
+            {
+                switch (tokens.GetValue(index))
+                {
+                    case "asc":
+                    case "desc":
+                        index++;
+                        break;
+                }
+            }
+        }
+
+        if (expression)
+        {
+            return null;
+        }
+        return (token, column);
+    }
+
+    /// <summary>
+    /// Parses a list of columns and checks they exist in the current table
     /// </summary>
     List<(Token token, Column column)> ParseColumnList(
         ref int index,
@@ -939,7 +1033,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
         Increment(ref index, 1, tokens);
 
-        var columns = ParseColumnList(ref index, tokens, existingColumns);
+        var columns = ParseIndexedColumnList(ref index, tokens, table);
 
         if (columns.Count == 1)
         {
