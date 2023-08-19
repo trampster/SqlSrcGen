@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
 namespace SqlSrcGen;
 
@@ -65,8 +66,60 @@ public class ExpressionParser : Parser
             case "between":
                 ParseBetweenStatement(ref index, tokens, table);
                 return true;
+            case "in":
+                ParseInStatement(ref index, tokens, table);
+                return true;
             default:
                 return true;
+        }
+    }
+
+    void ParseInStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "in");
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) == "(")
+        {
+            Increment(ref index, 1, tokens);
+            switch (tokens.GetValue(index))
+            {
+                case "with":
+                case "select":
+                    ParseSelectStatement(ref index, tokens, table);
+                    Expect(index, tokens, ")");
+                    index++;
+                    return;
+                case ")":
+                    index++;
+                    return;
+                default:
+                    index--;// expr list assumes sarting from the open brackets
+                    ParseExprList(ref index, tokens, table);
+                    return;
+            }
+        }
+        if (tokens[index].TokenType == TokenType.Other && tokens.HasIndex(index + 1) && tokens.GetValue(index + 1) == ".")
+        {
+            //this is a schema
+            new InvalidSqlException("Attached databases are not supported", tokens[index]);
+        }
+        if (tokens[index].TokenType == TokenType.Other && tokens.HasIndex(index + 1) && tokens.GetValue(index) != "(")
+        {
+            //table function
+            Increment(ref index, 1, tokens);
+            ParseExprList(ref index, tokens, table);
+            return;
+        }
+        if (tokens[index].TokenType == TokenType.Other)
+        {
+            //table name
+            var tableName = tokens.GetValue(index);
+            if (!_databaseInfo.Tables.Any(table => table.SqlName.ToLower() == tableName))
+            {
+                throw new InvalidSqlException($"Table {tableName} doesn't exist", tokens[index]);
+            }
+            index++;
+            return;
         }
     }
 
@@ -124,6 +177,9 @@ public class ExpressionParser : Parser
                 return;
             case "between":
                 ParseBetweenStatement(ref index, tokens, table);
+                return;
+            case "in":
+                ParseInStatement(ref index, tokens, table);
                 return;
         }
     }

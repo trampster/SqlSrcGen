@@ -16,5 +16,10 @@ namespace SqlSrcGen
             }
             return tokens[index].Value.ToLowerInvariant();
         }
+
+        public static bool HasIndex(this Span<Token> tokens, int index)
+        {
+            return index < tokens.Length;
+        }
     }
 }

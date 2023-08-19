@@ -506,4 +506,35 @@ public class ParseExprTests
         Assert.That(result, Is.True);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
+
+    [TestCase("salary in (1,2,3)")]
+    [TestCase("salary not in (1,2,3)")]
+    [TestCase("2 in Job")]
+    [TestCase("2 not in Job")]
+    [TestCase("2 in someFunction(1,2,3)")]
+    [TestCase("2 not in someFunction(1,2,3)")]
+    public void Parse_In_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        _databaseInfo.Tables.Add(new Table() { SqlName = "Job" });
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
 }
