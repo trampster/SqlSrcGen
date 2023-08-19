@@ -726,7 +726,8 @@ public class ExpressionParser : Parser
                 ParseCaseStatement(ref index, tokens, table);
                 return true;
             case "raise":
-                throw new NotImplementedException();
+                ParseRaiseStatement(ref index, tokens, table);
+                return true;
             case "~":
             case "-":
             case "+":
@@ -742,6 +743,38 @@ public class ExpressionParser : Parser
                 //column identifier
                 ParseColumnIdentifier(ref index, tokens, table);
                 return true;
+        }
+    }
+
+    void ParseRaiseStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "raise");
+        Increment(ref index, 1, tokens);
+        Expect(index, tokens, "(");
+        Increment(ref index, 1, tokens);
+        switch (tokens.GetValue(index))
+        {
+            case "ignore":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, ")");
+                index++;
+                return;
+            case "rollback":
+            case "abort":
+            case "fail":
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, ",");
+                Increment(ref index, 1, tokens);
+                if (tokens[index].TokenType != TokenType.StringLiteral)
+                {
+                    throw new InvalidSqlException("Expected error message", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                Expect(index, tokens, ")");
+                index++;
+                return;
+            default:
+                throw new InvalidSqlException("Unexpected token", tokens[index]);
         }
     }
 

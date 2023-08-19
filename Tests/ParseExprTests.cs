@@ -563,4 +563,31 @@ public class ParseExprTests
         Assert.That(result, Is.True);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
+
+    [TestCase("raise ( ignore )")]
+    [TestCase("raise ( rollback, 'my error message' )")]
+    [TestCase("raise ( abort, 'my error message' )")]
+    [TestCase("raise ( fail, 'my error message' )")]
+    public void Parse_Raise_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
 }
