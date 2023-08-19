@@ -167,4 +167,23 @@ public class TablePrimaryKeyConstraintTests
         Assert.That(databaseInfo.Tables[0].PrimaryKey.Any(column => column.SqlName == "name"), Is.True);
         Assert.That(databaseInfo.Tables[0].PrimaryKey.Any(column => column.SqlName == "id"), Is.True);
     }
+
+
+    [TestCase("(name, id)")]
+    [TestCase("(name collate nocase, id)")]
+    [TestCase("(name collate nocase asc, id)")]
+    [TestCase("(name collate nocase desc, id)")]
+    public void PrimaryKeyTableConstraint_IndexColumns_CreatesTableInfo(string indexedColumns)
+    {
+        // arrange
+        var generator = new SqlGenerator();
+        var databaseInfo = new DatabaseInfo();
+
+        // act
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, PRIMARY KEY {indexedColumns} ON CONFLICT ROLLBACK);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+
+        // assert
+        Assert.That(databaseInfo.Tables[0].PrimaryKey.Any(column => column.SqlName == "name"), Is.True);
+        Assert.That(databaseInfo.Tables[0].PrimaryKey.Any(column => column.SqlName == "id"), Is.True);
+    }
 }
