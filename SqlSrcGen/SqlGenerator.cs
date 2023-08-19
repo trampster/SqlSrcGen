@@ -977,7 +977,14 @@ public class SqlGenerator : Parser, ISourceGenerator
         switch (tokens.GetValue(index))
         {
             case "constraint":
-                throw new NotImplementedException();
+                Increment(ref index, 1, tokens);
+                if (tokens[index].TokenType != TokenType.Other)
+                {
+                    throw new InvalidSqlException("Expected constraint name", tokens[index]);
+                }
+                Increment(ref index, 1, tokens);
+                ParseTableConstraint(ref index, tokens, existingColumns, diagnoticsReporter, existingTables, table);
+                return true;
             case "primary":
                 ParseTablePrimaryKeyConstraint(ref index, tokens, existingColumns, table);
                 return true;
