@@ -723,7 +723,8 @@ public class ExpressionParser : Parser
                 ParseExprList(ref index, tokens, table);
                 return true;
             case "case":
-                throw new NotImplementedException();
+                ParseCaseStatement(ref index, tokens, table);
+                return true;
             case "raise":
                 throw new NotImplementedException();
             case "~":
@@ -742,6 +743,47 @@ public class ExpressionParser : Parser
                 ParseColumnIdentifier(ref index, tokens, table);
                 return true;
         }
+    }
+
+    void ParseCaseStatement(ref int index, Span<Token> tokens, Table table)
+    {
+        Expect(index, tokens, "case");
+        Increment(ref index, 1, tokens);
+        if (tokens.GetValue(index) != "when")
+        {
+            Parse(ref index, tokens, table);
+        }
+        while (true)
+        {
+            Expect(index, tokens, "when");
+            Increment(ref index, 1, tokens);
+            if (!Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected expression", tokens[index]);
+            }
+            Expect(index, tokens, "then");
+            Increment(ref index, 1, tokens);
+            if (!Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected expression", tokens[index]);
+            }
+            if (IsOneOf(index, tokens, "else", "end"))
+            {
+                break;
+            }
+        }
+
+        if (tokens.GetValue(index) == "else")
+        {
+            Increment(ref index, 1, tokens);
+            if (!Parse(ref index, tokens, table))
+            {
+                throw new InvalidSqlException("Expected expression", tokens[index]);
+            }
+        }
+
+        Expect(index, tokens, "end");
+        index++;
     }
 
     void PraseExistsStatement(ref int index, Span<Token> tokens, Table table)

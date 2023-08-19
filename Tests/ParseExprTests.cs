@@ -537,4 +537,30 @@ public class ParseExprTests
         Assert.That(result, Is.True);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
+
+    [TestCase("case salary when 1000 then 'poor' when 100000 then 'rich' end")]
+    [TestCase("case salary when 1000 then 'poor' else 'unknown' end")]
+    [TestCase("case when 1000 then 'poor' else 'unknown' end")]
+    public void Parse_Case_Parsed(string literalValue)
+    {
+        // arrange
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
+        var table = new Table()
+        {
+            Columns = new List<Column>
+            {
+                new Column(){SqlName = "salary"},
+            }
+        };
+
+        int index = 0;
+
+        // act
+        var result = _expressionParser.Parse(ref index, tokens, table);
+
+        // assert
+        Assert.That(result, Is.True);
+        Assert.That(index, Is.EqualTo(tokens.Length));
+    }
 }
