@@ -301,6 +301,8 @@ public class SqlGenerator : Parser, ISourceGenerator
             throw new InvalidSqlException("Ran out of tokens while looking for ')' or ',' in CREATE TABLE command", tokensToProcess[tokensToProcess.Length - 1]);
         }
 
+        ParseTableOptions(ref index, tokens);
+
         AssertEnoughTokens(tokens, index);
         if (tokens[index].Value != ";")
         {
@@ -311,6 +313,45 @@ public class SqlGenerator : Parser, ISourceGenerator
             return Span<Token>.Empty;
         }
         return tokens.Slice(index + 1);
+    }
+
+    void ParseTableOptions(ref int index, Span<Token> tokens)
+    {
+        if (IsEnd(index, tokens))
+        {
+            return;
+        }
+        if (!Is(index, tokens, "without", "strict"))
+        {
+            return;
+        }
+
+        while (!IsEnd(index, tokens))
+        {
+            switch (tokens.GetValue(index))
+            {
+                case "without":
+                    Increment(ref index, 1, tokens);
+                    Expect(index, tokens, "rowid");
+                    break;
+                case "strict":
+                    break;
+                default:
+                    throw new InvalidSqlException("Expected WITHOUT or STRICT", tokens[index]);
+            }
+            if (IsEnd(index + 1, tokens))
+            {
+                index++;
+                return;
+            }
+            Increment(ref index, 1, tokens);
+            if (tokens.GetValue(index) != ",")
+            {
+                return;
+            }
+            Increment(ref index, 1, tokens);
+
+        }
     }
 
     TypeAffinity ToTypeAffinity(string sqlType)

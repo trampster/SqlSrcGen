@@ -59,6 +59,15 @@ public abstract class Parser : IParser
         }
     }
 
+    protected bool Is(int index, Span<Token> tokens, params string[] values)
+    {
+        var value = tokens.GetValue(index);
+        return values.Contains(value);
+    }
+
+    /// <summary>
+    /// returns true if the token is past the end of the tokens span
+    /// </summary>
     protected bool IsEnd(int index, Span<Token> tokens)
     {
         return index >= tokens.Length;
