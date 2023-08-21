@@ -45,13 +45,21 @@ var contact = new Contact();
 bool found = database.GetContact(contact, "Steve Rogers");
 
 // delete all rows from table
-database!.DeleteAllContacts();
+database.DeleteAllContacts();
 
-// delete a row vis primary key (only generated for tables with a primary key)
-database!.DeleteContact("Steve Rogers");
+// delete a row via primary key (only generated for tables with a primary key)
+database.DeleteContact("Steve Rogers");
+
+// Begin a transaction
+database.BeginTransaction();
+
+// Commit a transaction
+database.CommitTransaction();
+
+// Rollback a transaction
+database.RollbackTransaction();
 ```
 
 ## Future Work
 SqlSrcGen currently only supports basic crud operations generated directly from sql table definitions. Future features include:
 * Custom queries (select, joins etc)
-* transactions
