@@ -42,6 +42,10 @@ public class DatabaseAccessGenerator
             GenerateLastInsertRowId(builder);
         }
 
+        GenerateBeginTransaction(builder);
+        GenerateCommitTransaction(builder);
+        GenerateRollbackTransaction(builder);
+
         foreach (var table in databaseInfo.Tables)
         {
             GenerateCreateTable(table, builder);
@@ -548,6 +552,52 @@ public class DatabaseAccessGenerator
             }
             columnIndex++;
         }
+    }
+
+    void GenerateBeginTransaction(SourceBuilder builder)
+    {
+        GenerateStatement(builder, "BEGIN", "beginTransaction", "BeginTransaction", "begin transaction");
+    }
+
+    void GenerateCommitTransaction(SourceBuilder builder)
+    {
+        GenerateStatement(builder, "COMMIT", "commitTransaction", "CommitTransaction", "commit transaction");
+    }
+
+    void GenerateRollbackTransaction(SourceBuilder builder)
+    {
+        GenerateStatement(builder, "ROLLBACK", "rollbackTransaction", "RollbackTransaction", "rollback transaction");
+    }
+
+    void GenerateStatement(SourceBuilder builder, string query, string codeName, string methodName, string description)
+    {
+        string beginTransactionBytesFieldName = $"_{codeName}Bytes";
+        AppendQueryBytesField(builder, beginTransactionBytesFieldName, query);
+
+        string statementPointerFieldName = $"_{codeName}Statement";
+        builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
+        AppendDisposeStatement(statementPointerFieldName);
+
+        builder.AppendLine();
+
+
+        builder.AppendLine($"public void {methodName}()");
+        builder.AppendLine("{");
+        builder.AppendLine($"    if ({statementPointerFieldName} == IntPtr.Zero)");
+        builder.AppendLine("    {");
+        builder.AppendLine($"        var prepareResult = SqliteNativeMethods.sqlite3_prepare_v2(_dbHandle, {beginTransactionBytesFieldName}, {beginTransactionBytesFieldName}.Length, out {statementPointerFieldName}, IntPtr.Zero);");
+        builder.AppendLine("        if (prepareResult != Result.Ok)");
+        builder.AppendLine("        {");
+        builder.AppendLine($"            throw new SqliteException($\"Failed to prepare sqlite statement {query}\", prepareResult);");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine($"    var result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
+        builder.AppendLine($"    if(result != Result.Done)");
+        builder.AppendLine($"    {{");
+        builder.AppendLine($"       throw new SqliteException(\"Failed to begin {description}\", result);");
+        builder.AppendLine($"    }}");
+        builder.AppendLine($"}}");
     }
 
     void GenerateGetAll(Table table, SourceBuilder builder)
