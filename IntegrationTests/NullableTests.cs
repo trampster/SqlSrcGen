@@ -1,6 +1,5 @@
 using SqlSrcGen;
 using SQLite;
-using SqlSrcGen.Runtime;
 
 namespace Tests;
 

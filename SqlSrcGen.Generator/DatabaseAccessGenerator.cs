@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public class DatabaseAccessGenerator
 {
@@ -11,7 +11,7 @@ public class DatabaseAccessGenerator
     {
         builder.AppendLine("using System.Runtime.InteropServices;");
         builder.AppendLine("using System.Text;");
-        builder.AppendLine("using SqlSrcGen.Runtime;");
+        builder.AppendLine("using SqlSrcGen;");
     }
 
     public void Generate(SourceBuilder builder, DatabaseInfo databaseInfo)

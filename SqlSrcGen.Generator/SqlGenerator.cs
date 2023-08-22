@@ -7,7 +7,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 [Generator]
 public class SqlGenerator : Parser, ISourceGenerator

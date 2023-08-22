@@ -1,4 +1,4 @@
-namespace SqlSrcGen.Runtime;
+namespace SqlSrcGen;
 
 public class Contact1
 {

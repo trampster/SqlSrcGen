@@ -1,4 +1,4 @@
-using SqlSrcGen;
+using SqlSrcGen.Generator;
 
 namespace Tests;
 

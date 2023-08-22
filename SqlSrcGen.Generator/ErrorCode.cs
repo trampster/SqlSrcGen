@@ -1,4 +1,4 @@
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public enum ErrorCode
 {

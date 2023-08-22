@@ -1,3 +1,5 @@
+namespace SqlSrcGen.Generator;
+
 public enum TokenType
 {
     StringLiteral,

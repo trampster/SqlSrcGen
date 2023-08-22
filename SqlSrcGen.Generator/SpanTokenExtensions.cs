@@ -1,6 +1,6 @@
 using System;
 
-namespace SqlSrcGen
+namespace SqlSrcGen.Generator
 {
     public static class SpanTokenExtensions
     {

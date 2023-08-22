@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public class TypeNameParser : Parser
 {

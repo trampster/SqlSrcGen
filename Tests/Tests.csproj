@@ -16,7 +16,7 @@
     <PackageReference Include="Moq" Version="4.18.4" />
     <PackageReference Include="coverlet.collector" Version="3.1.2" />
 
-    <ProjectReference Include="..\SqlSrcGen\SqlSrcGen.csproj" />    
+    <ProjectReference Include="..\SqlSrcGen.Generator\SqlSrcGen.Generator.csproj" />    
 
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />

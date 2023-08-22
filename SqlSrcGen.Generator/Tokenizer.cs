@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public class Tokenizer
 {

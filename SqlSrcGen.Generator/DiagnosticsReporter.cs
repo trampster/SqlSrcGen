@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public interface IDiagnosticsReporter
 {

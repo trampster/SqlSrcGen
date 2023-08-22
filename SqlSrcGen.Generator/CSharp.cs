@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public static class CSharp
 {
