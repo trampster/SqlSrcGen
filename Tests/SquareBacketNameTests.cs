@@ -1,6 +1,6 @@
 using System.Text;
 using Moq;
-using SqlSrcGen;
+using SqlSrcGen.Generator;
 
 namespace Tests;
 

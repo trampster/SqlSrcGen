@@ -9,9 +9,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntegrationTests", "Integra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Playground", "Playground\Playground.csproj", "{9BF599B9-E089-4E57-BF25-A797D245F79B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlSrcGen", "SqlSrcGen\SqlSrcGen.csproj", "{072D96A4-479A-46A5-8FFE-A49C739EBA78}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlSrcGen.Generator", "SqlSrcGen.Generator\SqlSrcGen.Generator.csproj", "{072D96A4-479A-46A5-8FFE-A49C739EBA78}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlSrcGen.Runtime", "SqlSrcGen.Runtime\SqlSrcGen.Runtime.csproj", "{90673840-6F12-4188-B4E5-F850E2C35457}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlSrcGen", "SqlSrcGen\SqlSrcGen.csproj", "{90673840-6F12-4188-B4E5-F850E2C35457}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{CDA73D36-9BE9-4703-86B1-FB94BC52BCC7}"
 EndProject

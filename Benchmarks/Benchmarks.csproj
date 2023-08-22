@@ -10,10 +10,10 @@
     
   <ItemGroup>
     <ProjectReference 
-      Include="..\SqlSrcGen\SqlSrcGen.csproj"
+      Include="..\SqlSrcGen.Generator\SqlSrcGen.Generator.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\SqlSrcGen.Runtime\SqlSrcGen.Runtime.csproj" />
+    <ProjectReference Include="..\SqlSrcGen\SqlSrcGen.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SqlSrcGen.Runtime;
+namespace SqlSrcGen;
 
 public enum Result
 {

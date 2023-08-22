@@ -1,7 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 
-namespace SqlSrcGen.Runtime;
+namespace SqlSrcGen;
 
 public class Sqlite : IDisposable
 {

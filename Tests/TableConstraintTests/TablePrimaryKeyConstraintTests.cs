@@ -1,5 +1,5 @@
 using Moq;
-using SqlSrcGen;
+using SqlSrcGen.Generator;
 
 namespace Tests.TableConstraintTests;
 

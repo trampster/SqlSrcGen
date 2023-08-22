@@ -18,10 +18,10 @@
 
     <ItemGroup>
 		<ProjectReference 
-			Include="..\SqlSrcGen\SqlSrcGen.csproj"
+			Include="..\SqlSrcGen.Generator\SqlSrcGen.Generator.csproj"
 			OutputItemType="Analyzer"
 			ReferenceOutputAssembly="false" />
-		<ProjectReference Include="..\SqlSrcGen.Runtime\SqlSrcGen.Runtime.csproj" />
+		<ProjectReference Include="..\SqlSrcGen\SqlSrcGen.csproj" />
 
 	    <PackageReference Include="sqlite-net-pcl" Version="1.8.116" />
 

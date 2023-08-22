@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public class ExpressionParser : Parser
 {

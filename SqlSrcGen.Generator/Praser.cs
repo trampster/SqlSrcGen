@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace SqlSrcGen;
+namespace SqlSrcGen.Generator;
 
 public interface IParser
 {
