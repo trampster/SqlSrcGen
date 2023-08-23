@@ -14,6 +14,7 @@
     <PackageIcon>SqlSrcGen256.png</PackageIcon>
     <PackageUrl>https://github.com/trampster/SqlSrcGen</PackageUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageTags>sqlite;orm;sourcegenerator</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
