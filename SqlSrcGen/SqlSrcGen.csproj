@@ -13,6 +13,7 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageIcon>SqlSrcGen256.png</PackageIcon>
     <PackageUrl>https://github.com/trampster/SqlSrcGen</PackageUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
         <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
     <None Include="..\SqlSrcGen.Generator\bin\$(Configuration)\netstandard2.0\SqlSrcGen.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
 
 </Project>
