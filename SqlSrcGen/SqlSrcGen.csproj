@@ -11,7 +11,8 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Copyright>Copyright © Daniel Hughes 2023</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-     <PackageIcon>SqlSrcGen256.png</PackageIcon>
+    <PackageIcon>SqlSrcGen256.png</PackageIcon>
+    <PackageUrl>https://github.com/trampster/SqlSrcGen</PackageUrl>
   </PropertyGroup>
 
   <ItemGroup>
