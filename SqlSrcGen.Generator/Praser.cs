@@ -26,7 +26,7 @@ public abstract class Parser : IParser
         set;
     }
 
-    public IDiagnosticsReporter DiagnosticsReporter
+    public virtual IDiagnosticsReporter DiagnosticsReporter
     {
         get;
         set;

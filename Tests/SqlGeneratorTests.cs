@@ -22,8 +22,8 @@ public class SqlGeneratorTests
             SqlName = "contact",
             CSharpName = "Contact",
         };
-        table.Columns.Add(new Column() { SqlName = "name", CSharpName = "Name", SqlType = "Text", CSharpType = "string" });
-        table.Columns.Add(new Column() { SqlName = "email", CSharpName = "Email", SqlType = "Text", CSharpType = "string" });
+        table.AddColumn(new Column() { SqlName = "name", CSharpName = "Name", SqlType = "Text", CSharpType = "string" });
+        table.AddColumn(new Column() { SqlName = "email", CSharpName = "Email", SqlType = "Text", CSharpType = "string" });
         databaseInfo.Tables.Add(table);
 
         string expectedSource =
@@ -49,17 +49,18 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
-        Assert.That(databaseInfo.Tables[0].Columns[0].NotNull, Is.False);
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        Assert.That(columns[0].NotNull, Is.False);
     }
 
     [Test]
@@ -70,16 +71,17 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (age Integer);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("age"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Age"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Integer"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("long?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.INTEGER));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("age"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Age"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Integer"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("long?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.INTEGER));
     }
 
     [Test]
@@ -90,16 +92,17 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (height Real);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (height Real);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("height"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Height"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Real"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("double?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.REAL));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("height"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Height"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Real"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("double?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.REAL));
     }
 
     [Test]
@@ -110,16 +113,17 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (key Blob);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("key"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Key"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Blob"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("byte[]?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("key"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Key"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Blob"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
     }
 
     [Test]
@@ -130,16 +134,17 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (key);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (key);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("key"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Key"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("blob"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("byte[]?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("key"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Key"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("blob"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
     }
 
     [Test]
@@ -150,22 +155,23 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (one, two);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (one, two);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("one"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("One"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("blob"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("byte[]?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("one"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("One"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("blob"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
 
-        Assert.That(databaseInfo.Tables[0].Columns[1].SqlName, Is.EqualTo("two"));
-        Assert.That(databaseInfo.Tables[0].Columns[1].CSharpName, Is.EqualTo("Two"));
-        Assert.That(databaseInfo.Tables[0].Columns[1].SqlType, Is.EqualTo("blob"));
-        Assert.That(databaseInfo.Tables[0].Columns[1].CSharpType, Is.EqualTo("byte[]?"));
-        Assert.That(databaseInfo.Tables[0].Columns[1].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
+        Assert.That(columns[1].SqlName, Is.EqualTo("two"));
+        Assert.That(columns[1].CSharpName, Is.EqualTo("Two"));
+        Assert.That(columns[1].SqlType, Is.EqualTo("blob"));
+        Assert.That(columns[1].CSharpType, Is.EqualTo("byte[]?"));
+        Assert.That(columns[1].TypeAffinity, Is.EqualTo(TypeAffinity.BLOB));
     }
 
     [Test]
@@ -176,16 +182,17 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (distance Numeric);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("distance"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Distance"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Numeric"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("Numeric?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.NUMERIC));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("distance"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Distance"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Numeric"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("Numeric?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.NUMERIC));
     }
 
     [Test]
@@ -196,13 +203,13 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].PrimaryKey, Is.EqualTo(true));
-        Assert.That(databaseInfo.Tables[0].Columns[1].PrimaryKey, Is.EqualTo(false));
+        Assert.That(databaseInfo.Tables[0].Columns.ElementAt(0).PrimaryKey, Is.EqualTo(true));
+        Assert.That(databaseInfo.Tables[0].Columns.ElementAt(1).PrimaryKey, Is.EqualTo(false));
     }
 
     [Test]
@@ -215,7 +222,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text primary key);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary key, email Text primary key);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -238,7 +245,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text primary);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -261,7 +268,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE contact (name Text, Name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema("CREATE TABLE contact (name Text, Name Text);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -285,11 +292,11 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE {tempTokenName} TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE {tempTokenName} TABLE contact (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables.First().Tempory, Is.True);
-        Assert.That(databaseInfo.Tables.First().Columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(databaseInfo.Tables.First().Columns.First().SqlName, Is.EqualTo("name"));
     }
 
     [Test]
@@ -300,7 +307,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables.First().Tempory, Is.False);
@@ -314,11 +321,11 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE IF NOT EXISTS contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE IF NOT EXISTS contact (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
-        Assert.That(databaseInfo.Tables.First().Columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(databaseInfo.Tables.First().Columns.First().SqlName, Is.EqualTo("name"));
     }
 
     [TestCase("IF")]
@@ -334,7 +341,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE {invalidIfNotExists} contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE {invalidIfNotExists} contact (name Text);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -357,7 +364,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE my_schema.contact (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE my_schema.contact (name Text);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -378,7 +385,7 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE [if] (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE [if] (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("[if]"));
@@ -395,7 +402,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE new_table AS (SELECT * FROM old_table);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE new_table AS (SELECT * FROM old_table);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -417,10 +424,10 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE new_table (name {sqlTypeName});", databaseInfo);
 
         // assert
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo(expectedSqlType));
+        Assert.That(databaseInfo.Tables[0].Columns.First().SqlType, Is.EqualTo(expectedSqlType));
     }
 
     [TestCase("CREATE TABLE new_table (name Integer primary key autoincrement);")]
@@ -434,10 +441,10 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(query, databaseInfo);
 
         // assert
-        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);
+        Assert.That(databaseInfo.Tables[0].Columns.First().AutoIncrement, Is.True);
     }
 
     [TestCase("CREATE TABLE new_table (name Integer primary key);")]
@@ -451,10 +458,10 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(query, databaseInfo);
 
         // assert
-        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.False);
+        Assert.That(databaseInfo.Tables[0].Columns.First().AutoIncrement, Is.False);
     }
 
     [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict rollback);")]
@@ -470,7 +477,7 @@ public class SqlGeneratorTests
 
         // act
         // assert
-        generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(query, databaseInfo);
     }
 
     [TestCase("CREATE TABLE new_table (name Integer primary key desc on conflict giveup);", 66, "Invalid conflict action")]
@@ -485,7 +492,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(query, databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -517,7 +524,7 @@ public class SqlGeneratorTests
         // act
         try
         {
-            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(query, databaseInfo);
         }
         catch (InvalidSqlException)
         {
@@ -535,7 +542,7 @@ public class SqlGeneratorTests
         // act
         try
         {
-            generator.ProcessSqlSchema(query, databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(query, databaseInfo);
         }
         catch (InvalidSqlException)
         {
@@ -552,7 +559,7 @@ public class SqlGeneratorTests
         try
         {
             // act
-            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema("CREATE TABLE new_table (name TEXT primary key AUTOINCREMENT);", databaseInfo);
 
             // assert
             Assert.Fail("InvalidSqlException didn't occur");
@@ -573,10 +580,11 @@ public class SqlGeneratorTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema("CREATE TABLE new_table (name INTEGER primary key AUTOINCREMENT NOT NULL);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema("CREATE TABLE new_table (name INTEGER primary key AUTOINCREMENT NOT NULL);", databaseInfo);
 
         // assert
-        Assert.That(databaseInfo.Tables[0].Columns[0].AutoIncrement, Is.True);
-        Assert.That(databaseInfo.Tables[0].Columns[0].NotNull, Is.True);
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].AutoIncrement, Is.True);
+        Assert.That(columns[0].NotNull, Is.True);
     }
 }

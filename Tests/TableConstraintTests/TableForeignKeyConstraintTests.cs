@@ -1,5 +1,4 @@
 using System.Text;
-using Moq;
 using SqlSrcGen.Generator;
 
 namespace Tests;
@@ -17,14 +16,15 @@ public class TableForeignKeyConstraintTests
         queryBuilder.Append("CREATE TABLE contact (name Text, street Text, number Integer, FOREIGN KEY (street, number) references addresses (street_name, street_number));");
 
         // act
-        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[1].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[1].Columns[1].SqlName, Is.EqualTo("street"));
-        Assert.That(databaseInfo.Tables[1].Columns[2].SqlName, Is.EqualTo("number"));
+        var columns = databaseInfo.Tables[1].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[1].SqlName, Is.EqualTo("street"));
+        Assert.That(columns[2].SqlName, Is.EqualTo("number"));
     }
 
     [Test]
@@ -38,14 +38,15 @@ public class TableForeignKeyConstraintTests
         queryBuilder.Append("CREATE TABLE contact (name Text, street Text, number Integer, FOREIGN KEY (street, number) references addresses (street_name, street_number));");
 
         // act
-        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[1].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[1].Columns[1].SqlName, Is.EqualTo("street"));
-        Assert.That(databaseInfo.Tables[1].Columns[2].SqlName, Is.EqualTo("number"));
+        var columns = databaseInfo.Tables[1].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[1].SqlName, Is.EqualTo("street"));
+        Assert.That(columns[2].SqlName, Is.EqualTo("number"));
     }
 
     [Test]
@@ -59,14 +60,15 @@ public class TableForeignKeyConstraintTests
         queryBuilder.Append("CREATE TABLE contact (name Text, street Text, number Integer, FOREIGN KEY (street, number) references addresses);");
 
         // act
-        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[1].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[1].Columns[1].SqlName, Is.EqualTo("street"));
-        Assert.That(databaseInfo.Tables[1].Columns[2].SqlName, Is.EqualTo("number"));
+        var columns = databaseInfo.Tables[1].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[1].SqlName, Is.EqualTo("street"));
+        Assert.That(columns[2].SqlName, Is.EqualTo("number"));
     }
 
     [Test]
@@ -82,7 +84,7 @@ public class TableForeignKeyConstraintTests
         try
         {
             // act
-            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -107,7 +109,7 @@ public class TableForeignKeyConstraintTests
         try
         {
             // act
-            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -132,7 +134,7 @@ public class TableForeignKeyConstraintTests
         try
         {
             // act
-            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -157,7 +159,7 @@ public class TableForeignKeyConstraintTests
         try
         {
             // act
-            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(queryBuilder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)

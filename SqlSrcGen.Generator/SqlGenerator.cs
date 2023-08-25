@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
@@ -17,6 +15,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     readonly TypeNameParser _typeNameParser;
     readonly ExpressionParser _expressionParser;
     readonly CollationParser _collationParser;
+    readonly SelectParser _selectParser;
     readonly List<IParser> _parsers;
     readonly DatabaseInfo _databaseInfo;
     readonly Tokenizer _tokenizer;
@@ -31,13 +30,31 @@ public class SqlGenerator : Parser, ISourceGenerator
         _typeNameParser = new TypeNameParser();
         _collationParser = new CollationParser();
         _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser, _collationParser);
-        _parsers = new List<IParser>();
-        _parsers.Add(_literalValueParser);
-        _parsers.Add(_expressionParser);
-        _parsers.Add(_numberParser);
-        _parsers.Add(_typeNameParser);
-        _parsers.Add(_collationParser);
+        _selectParser = new SelectParser(_databaseInfo);
+        _parsers = new List<IParser>
+        {
+            _literalValueParser,
+            _expressionParser,
+            _numberParser,
+            _typeNameParser,
+            _collationParser,
+            _selectParser
+        };
         _tokenizer = new Tokenizer();
+    }
+
+    IDiagnosticsReporter _diagnosticsReporter;
+    public override IDiagnosticsReporter DiagnosticsReporter
+    {
+        get => _diagnosticsReporter;
+        set
+        {
+            _diagnosticsReporter = value;
+            foreach (var parser in _parsers)
+            {
+                parser.DiagnosticsReporter = value;
+            }
+        }
     }
 
     void SetQuery(Query query)
@@ -53,7 +70,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     {
 
         var databaseAccessGenerator = new DatabaseAccessGenerator();
-        var additionalFiles = context.AdditionalFiles.Where(at => at.Path.EndsWith(".sql"));
+        var additionalFiles = context.AdditionalFiles.Where(at => at.Path.EndsWith(".sql")).ToList();
         if (additionalFiles.Any())
         {
             var builder = new SourceBuilder();
@@ -69,11 +86,30 @@ public class SqlGenerator : Parser, ISourceGenerator
 
             var reporter = new DiagnosticsReporter(context);
 
-            reporter.Path = additionalFiles.First().Path;
             try
             {
-                ProcessSqlSchema(additionalFiles.First().GetText().ToString(), _databaseInfo, reporter);
+                var schemaFile = additionalFiles.Where(additionText => Path.GetFileName(additionText.Path) == "SqlSchema.sql").FirstOrDefault();
+                if (schemaFile == null)
+                {
+                    //no schema which means we can't generate queries as we don't know the table definitions
+                    reporter.Warning(ErrorCode.SSG0006, "Did not find a SqlSchmea.sql file, add one and include it as additional AdditionalFiles in your project file.");
+                    return;
+                }
+                reporter.Path = schemaFile.Path;
+                DiagnosticsReporter = reporter;
+                foreach (var parser in _parsers)
+                {
+                    parser.DiagnosticsReporter = reporter;
+                }
+
+                ProcessSqlSchema(schemaFile.GetText().ToString(), _databaseInfo);
                 GenerateDatabaseObjects(_databaseInfo, builder);
+
+                foreach (var selectQueryFile in additionalFiles.Where(file => Path.GetFileName(file.Path).StartsWith("Select")))
+                {
+                    reporter.Path = schemaFile.Path;
+                    ProcessSelectQuery(schemaFile.GetText().ToString());
+                }
             }
             catch (InvalidSqlException exception)
             {
@@ -111,12 +147,8 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo, IDiagnosticsReporter reporter)
+    public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo)
     {
-        foreach (var parser in _parsers)
-        {
-            parser.DiagnosticsReporter = reporter;
-        }
         var tokensList = _tokenizer.Tokenize(schemaText);
         var tokens = tokensList.ToArray().AsSpan();
         while (tokens.Length > 0)
@@ -125,12 +157,22 @@ public class SqlGenerator : Parser, ISourceGenerator
             {
                 case "create":
                     SetQuery(new Query());
-                    tokens = ProcessCreateCommand(tokens, databaseInfo, reporter);
+                    tokens = ProcessCreateCommand(tokens, databaseInfo);
                     break;
                 default:
                     throw new InvalidSqlException("Unsupported sql command", tokens[0]);
             }
         }
+    }
+
+    public void ProcessSelectQuery(string selectText)
+    {
+        var tokensList = _tokenizer.Tokenize(selectText);
+        var tokens = tokensList.ToArray().AsSpan();
+        var queryInfo = new QueryInfo();
+        int index = 0;
+        _selectParser.Parse(ref index, tokens, queryInfo);
+        queryInfo.Process();
     }
 
     public void GenerateDatabaseObjects(DatabaseInfo databaseInfo, SourceBuilder builder)
@@ -205,7 +247,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         Increment(ref index, 1, tokens);
     }
 
-    Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo, IDiagnosticsReporter diagnosticsReporter)
+    Span<Token> ProcessCreateCommand(Span<Token> tokensToProcess, DatabaseInfo databaseInfo)
     {
         var tokens = tokensToProcess;
         bool isTemp = false;
@@ -278,14 +320,14 @@ public class SqlGenerator : Parser, ISourceGenerator
         bool finishedColumns = false;
         while (true)
         {
-            bool readTableConstraint = ParseTableConstraint(ref index, tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables, table);
+            bool readTableConstraint = ParseTableConstraint(ref index, tokens, table.Columns, databaseInfo.Tables, table);
             if (!finishedColumns && readTableConstraint)
             {
                 finishedColumns = true;
             }
             if (!finishedColumns)
             {
-                ParseColumnDefinition(ref index, tokens, table.Columns, diagnosticsReporter, databaseInfo.Tables);
+                ParseColumnDefinition(ref index, tokens, table.Columns, databaseInfo.Tables, table);
             }
             if (tokens[index].Value == ")")
             {
@@ -425,7 +467,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    void ParsePrimaryKeyConstraint(Span<Token> columnDefinition, ref int index, List<Column> existingColumns, Column column)
+    void ParsePrimaryKeyConstraint(Span<Token> columnDefinition, ref int index, IEnumerable<Column> existingColumns, Column column)
     {
         // already know it starts with primary
         var token = columnDefinition[index];
@@ -677,7 +719,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    void ParseForeignKeyClause(Span<Token> tokens, ref int index, List<Table> existingTables, List<Column> localColumns, bool isColumnConstraint, IDiagnosticsReporter diagnoticsReporter)
+    void ParseForeignKeyClause(Span<Token> tokens, ref int index, List<Table> existingTables, List<Column> localColumns, bool isColumnConstraint)
     {
         int start = index;
         if (tokens.GetValue(index) != "references")
@@ -708,7 +750,7 @@ public class SqlGenerator : Parser, ISourceGenerator
             }
             if (tokenValue == "match")
             {
-                diagnoticsReporter.Warning(
+                DiagnosticsReporter.Warning(
                     ErrorCode.SSG0004,
                     "SQLite parses MATCH clauses, but does not enforce them. All foreign key constraints in SQLite are handled as if MATCH SIMPLE were specified.",
                     tokens[index]);
@@ -803,7 +845,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    bool ParseColumnConstraint(Span<Token> columnDefinition, ref int index, Column column, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    bool ParseColumnConstraint(Span<Token> columnDefinition, ref int index, Column column, IEnumerable<Column> existingColumns, List<Table> existingTables)
     {
         if (columnDefinition.GetValue(index) == "constraint")
         {
@@ -813,12 +855,12 @@ public class SqlGenerator : Parser, ISourceGenerator
                 throw new InvalidSqlException($"Expected column name", columnDefinition[index]);
             }
             Increment(ref index, 1, columnDefinition);
-            return ParseColumnConstraintDefinition(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables);
+            return ParseColumnConstraintDefinition(columnDefinition, ref index, column, existingColumns, existingTables);
         }
-        return ParseColumnConstraintDefinition(columnDefinition, ref index, column, existingColumns, diagnoticsReporter, existingTables);
+        return ParseColumnConstraintDefinition(columnDefinition, ref index, column, existingColumns, existingTables);
     }
 
-    bool ParseColumnConstraintDefinition(Span<Token> tokens, ref int index, Column column, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    bool ParseColumnConstraintDefinition(Span<Token> tokens, ref int index, Column column, IEnumerable<Column> existingColumns, List<Table> existingTables)
     {
         var token = tokens[index];
         switch (token.Value.ToLowerInvariant())
@@ -857,7 +899,7 @@ public class SqlGenerator : Parser, ISourceGenerator
                 _collationParser.PraseCollateConstraint(tokens, ref index, column);
                 return true;
             case "references":
-                ParseForeignKeyClause(tokens, ref index, existingTables, new List<Column> { column }, true, diagnoticsReporter);
+                ParseForeignKeyClause(tokens, ref index, existingTables, new List<Column> { column }, true);
                 return true;
             case "generated":
                 ParseGeneratedConstraint(tokens, ref index);
@@ -873,7 +915,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     void ParseTableUniqueConstraint(
         ref int index,
         Span<Token> tokens,
-        List<Column> existingColumns,
+        IEnumerable<Column> existingColumns,
         Table table)
     {
         int startIndex = index;
@@ -1014,7 +1056,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     List<(Token token, Column column)> ParseColumnList(
         ref int index,
         Span<Token> tokens,
-        List<Column> existingColumns)
+        IEnumerable<Column> existingColumns)
     {
         List<(Token, Column)> columns = new();
         var columnTokens = ReadList(tokens, ref index);
@@ -1036,8 +1078,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         ref int index,
         Span<Token> tokens,
         Table table,
-        List<Table> existingTables,
-        IDiagnosticsReporter diagnosticsReporter)
+        List<Table> existingTables)
     {
         if (tokens.GetValue(index) != "foreign")
         {
@@ -1052,13 +1093,13 @@ public class SqlGenerator : Parser, ISourceGenerator
 
         var localColumns = ParseColumnList(ref index, tokens, table.Columns);
 
-        ParseForeignKeyClause(tokens, ref index, existingTables, localColumns.Select(col => col.column).ToList(), false, diagnosticsReporter);
+        ParseForeignKeyClause(tokens, ref index, existingTables, localColumns.Select(col => col.column).ToList(), false);
     }
 
     void ParseTablePrimaryKeyConstraint(
         ref int index,
         Span<Token> tokens,
-        List<Column> existingColumns,
+        IEnumerable<Column> existingColumns,
         Table table)
     {
         int startIndex = index;
@@ -1104,8 +1145,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     bool ParseTableConstraint(
         ref int index,
         Span<Token> tokens,
-        List<Column> existingColumns,
-        IDiagnosticsReporter diagnoticsReporter,
+        IEnumerable<Column> existingColumns,
         List<Table> existingTables,
         Table table)
     {
@@ -1118,7 +1158,7 @@ public class SqlGenerator : Parser, ISourceGenerator
                     throw new InvalidSqlException("Expected constraint name", tokens[index]);
                 }
                 Increment(ref index, 1, tokens);
-                ParseTableConstraint(ref index, tokens, existingColumns, diagnoticsReporter, existingTables, table);
+                ParseTableConstraint(ref index, tokens, existingColumns, existingTables, table);
                 return true;
             case "primary":
                 ParseTablePrimaryKeyConstraint(ref index, tokens, existingColumns, table);
@@ -1130,7 +1170,7 @@ public class SqlGenerator : Parser, ISourceGenerator
                 ParseCheckConstraint(ref index, tokens);
                 return true;
             case "foreign":
-                ParseTableForeignKeyConstraint(ref index, tokens, table, existingTables, diagnoticsReporter);
+                ParseTableForeignKeyConstraint(ref index, tokens, table, existingTables);
                 return true;
         }
 
@@ -1147,7 +1187,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         SkipBrackets(tokens, ref index);
     }
 
-    void ParseColumnDefinition(ref int index, Span<Token> tokens, List<Column> existingColumns, IDiagnosticsReporter diagnoticsReporter, List<Table> existingTables)
+    void ParseColumnDefinition(ref int index, Span<Token> tokens, IEnumerable<Column> existingColumns, List<Table> existingTables, Table table)
     {
         AssertEnoughTokens(tokens, index);
         string name = tokens[index].Value;
@@ -1168,7 +1208,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         column.CSharpName = cSharpName;
         column.SqlType = "blob";
 
-        if (!ParseColumnConstraint(tokens, ref index, column, existingColumns, diagnoticsReporter, existingTables))
+        if (!ParseColumnConstraint(tokens, ref index, column, existingColumns, existingTables))
         {
             var token = tokens[index];
             if (token.Value != "," && token.Value != ")")
@@ -1189,14 +1229,14 @@ public class SqlGenerator : Parser, ISourceGenerator
             {
                 break;
             }
-            if (!ParseColumnConstraint(tokens, ref index, column, existingColumns, diagnoticsReporter, existingTables))
+            if (!ParseColumnConstraint(tokens, ref index, column, existingColumns, existingTables))
             {
                 throw new InvalidSqlException("Unexpected token", token);
             }
         }
 
         column.CSharpType = ToDotnetType(typeAffinity, column.NotNull);
-        existingColumns.Add(column);
+        table.AddColumn(column);
     }
 
     /// <summary>

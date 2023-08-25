@@ -163,7 +163,7 @@ public class ParseExprTests
         {
             SqlName = "tableName"
         };
-        table.Columns.Add(new Column()
+        table.AddColumn(new Column()
         {
             SqlName = "myColumn"
         });
@@ -171,7 +171,7 @@ public class ParseExprTests
         _databaseInfo.Tables.Add(table);
 
         var currentTable = new Table();
-        currentTable.Columns.Add(new Column
+        currentTable.AddColumn(new Column
         {
             SqlName = "columnName"
         });
@@ -291,14 +291,9 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-                new Column(){SqlName = "type"}
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
+        table.AddColumn(new Column() { SqlName = "type" });
 
         int index = 0;
 
@@ -316,13 +311,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -340,13 +330,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -384,13 +369,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -413,13 +393,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -439,13 +414,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -465,13 +435,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -490,13 +455,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -519,13 +479,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         _databaseInfo.Tables.Add(new Table() { SqlName = "Job" });
 
@@ -547,13 +502,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 
@@ -574,13 +524,8 @@ public class ParseExprTests
         // arrange
         var tokenizer = new Tokenizer();
         var tokens = tokenizer.Tokenize(literalValue).ToArray().AsSpan();
-        var table = new Table()
-        {
-            Columns = new List<Column>
-            {
-                new Column(){SqlName = "salary"},
-            }
-        };
+        var table = new Table();
+        table.AddColumn(new Column() { SqlName = "salary" });
 
         int index = 0;
 

@@ -1,6 +1,5 @@
 using System.Text;
 using Moq;
-using SqlSrcGen;
 using SqlSrcGen.Generator;
 
 namespace Tests;
@@ -19,16 +18,17 @@ public class ReferencesConstraintTests
         schemaBuilder.AppendLine("CREATE TABLE child (name Text REFERENCES parent);");
 
         // act
-        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("child"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Child"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 
     [Test]
@@ -45,7 +45,7 @@ public class ReferencesConstraintTests
         // act
         try
         {
-            generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -70,16 +70,17 @@ public class ReferencesConstraintTests
         schemaBuilder.AppendLine("CREATE TABLE child (name Text REFERENCES parent(name));");
 
         // act
-        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("child"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Child"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 
     [TestCase("on delete set null")]
@@ -104,16 +105,17 @@ public class ReferencesConstraintTests
         schemaBuilder.AppendLine($"CREATE TABLE child (name Text REFERENCES parent(name) {extraClauses});");
 
         // act
-        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("child"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Child"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 
     [Test]
@@ -136,12 +138,13 @@ public class ReferencesConstraintTests
                 capturedToken = token;
                 capturedMessage = message;
             });
+        generator.DiagnosticsReporter = diagnosticsReporterMock.Object;
 
         // act
         var schemaBuilder = new StringBuilder();
         schemaBuilder.AppendLine("CREATE TABLE parent (name Text PRIMARY KEY);");
         schemaBuilder.AppendLine($"CREATE TABLE child (name Text REFERENCES parent(name) match simple);");
-        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, diagnosticsReporterMock.Object);
+        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(capturedToken, Is.Not.Null);
@@ -168,15 +171,16 @@ public class ReferencesConstraintTests
         schemaBuilder.AppendLine($"CREATE TABLE child (name Text REFERENCES parent(name) {extraClauses});");
 
         // act
-        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema(schemaBuilder.ToString(), databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[1].SqlName, Is.EqualTo("child"));
         Assert.That(databaseInfo.Tables[1].CSharpName, Is.EqualTo("Child"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 }

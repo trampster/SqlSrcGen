@@ -13,17 +13,18 @@ public class TableUniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, unique (name));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, unique (name));", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("contact"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Contact"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
-        Assert.That(databaseInfo.Tables[0].Columns[0].Unique, Is.True);
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        Assert.That(columns[0].Unique, Is.True);
     }
 
     [Test]
@@ -34,7 +35,7 @@ public class TableUniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (name, id));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (name, id));", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].Unique[0].Any(column => column.SqlName == "name"), Is.True);
@@ -49,7 +50,7 @@ public class TableUniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (name, id), UNIQUE (id, address));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (name, id), UNIQUE (id, address));", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].Unique[0].Any(column => column.SqlName == "name"), Is.True);
@@ -68,7 +69,7 @@ public class TableUniqueConstraintTests
         // act
         try
         {
-            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer Primary Key, address Text, Unique (id));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer Primary Key, address Text, Unique (id));", databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -90,7 +91,7 @@ public class TableUniqueConstraintTests
         // act
         try
         {
-            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, PRIMARY KEY (id, name), UNIQUE (id, name));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, PRIMARY KEY (id, name), UNIQUE (id, name));", databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -113,7 +114,7 @@ public class TableUniqueConstraintTests
         // act
         try
         {
-            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (id, name), UNIQUE (id, name));", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, UNIQUE (id, name), UNIQUE (id, name));", databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -134,7 +135,7 @@ public class TableUniqueConstraintTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, Unique (name, id) ON CONFLICT ROLLBACK);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE contact (name Text, id integer, address Text, Unique (name, id) ON CONFLICT ROLLBACK);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].Unique[0].Any(column => column.SqlName == "name"), Is.True);

@@ -12,5 +12,7 @@ public enum ErrorCode
     // MATCH on references constrain is not supported in sqlite, it's parsed but has no effect
     SSG0004,
     // Not supported
-    SSG0005
+    SSG0005,
+    // missing SqlSchema.sql
+    SSG0006
 }

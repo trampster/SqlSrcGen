@@ -41,4 +41,18 @@ public class DiagnosticsReporter : IDiagnosticsReporter
                 new LinePositionSpan(
                     new LinePosition(token.Line, token.CharacterInLine), new LinePosition(token.Line, token.CharacterInLine + token.Value.Length)))));
     }
+
+    public void Warning(ErrorCode errorCode, string message)
+    {
+        _context.ReportDiagnostic(
+            Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    errorCode.ToString(),
+                    "SQL Warning",
+                    message,
+                    "SQL",
+                    DiagnosticSeverity.Warning,
+                    true),
+                null));
+    }
 }

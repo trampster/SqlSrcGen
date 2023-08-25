@@ -21,5 +21,14 @@ namespace SqlSrcGen.Generator
         {
             return index < tokens.Length;
         }
+
+        public static bool NextIs(this Span<Token> tokens, int index, string value)
+        {
+            if (!tokens.HasIndex(index + 1))
+            {
+                return false;
+            }
+            return tokens.GetValue(index + 1) == value;
+        }
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace SqlSrcGen.Generator
 {
@@ -25,17 +26,23 @@ namespace SqlSrcGen.Generator
         public bool Unique { get; set; }
 
         public string CSharpParameterName => char.ToLowerInvariant(CSharpName[0]) + CSharpName.Substring(1, CSharpName.Length - 1);
+
+        public Table Table { get; set; }
     }
 
     public class Table
     {
         public string SqlName { get; set; }
         public string CSharpName { get; set; }
-        public List<Column> Columns
+
+        readonly List<Column> _columns = new();
+        public IEnumerable<Column> Columns => _columns;
+
+        public void AddColumn(Column column)
         {
-            get;
-            set;
-        } = new List<Column>();
+            column.Table = this;
+            _columns.Add(column);
+        }
 
         public string CreateTable { get; set; } = "";
         public bool Tempory { get; set; }

@@ -1,5 +1,4 @@
 using System.Text;
-using Moq;
 using SqlSrcGen.Generator;
 
 namespace Tests;
@@ -16,16 +15,17 @@ public class SquareBacketNameTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE {tableName} (name Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE {tableName} (name Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo(tableName));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo(cSharpName));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo("name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo("Name"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(columns[0].CSharpName, Is.EqualTo("Name"));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 
     [Test]
@@ -42,7 +42,7 @@ public class SquareBacketNameTests
         // act
         try
         {
-            generator.ProcessSqlSchema(builder.ToString(), databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema(builder.ToString(), databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
@@ -64,16 +64,17 @@ public class SquareBacketNameTests
         var databaseInfo = new DatabaseInfo();
 
         // act
-        generator.ProcessSqlSchema($"CREATE TABLE test ({columnName} Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+        generator.ProcessSqlSchema($"CREATE TABLE test ({columnName} Text);", databaseInfo);
 
         // assert
         Assert.That(databaseInfo.Tables[0].SqlName, Is.EqualTo("test"));
         Assert.That(databaseInfo.Tables[0].CSharpName, Is.EqualTo("Test"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlName, Is.EqualTo(columnName));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpName, Is.EqualTo(cSharpName));
-        Assert.That(databaseInfo.Tables[0].Columns[0].SqlType, Is.EqualTo("Text"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].CSharpType, Is.EqualTo("string?"));
-        Assert.That(databaseInfo.Tables[0].Columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
+        var columns = databaseInfo.Tables[0].Columns.ToArray();
+        Assert.That(columns[0].SqlName, Is.EqualTo(columnName));
+        Assert.That(columns[0].CSharpName, Is.EqualTo(cSharpName));
+        Assert.That(columns[0].SqlType, Is.EqualTo("Text"));
+        Assert.That(columns[0].CSharpType, Is.EqualTo("string?"));
+        Assert.That(columns[0].TypeAffinity, Is.EqualTo(TypeAffinity.TEXT));
     }
 
     [Test]
@@ -86,7 +87,7 @@ public class SquareBacketNameTests
         try
         {
             // act
-            generator.ProcessSqlSchema($"CREATE TABLE test ([one two] Text, [one  two] Text);", databaseInfo, Mock.Of<IDiagnosticsReporter>());
+            generator.ProcessSqlSchema($"CREATE TABLE test ([one two] Text, [one  two] Text);", databaseInfo);
             Assert.Fail("InvalidSqlException didn't occur");
         }
         catch (InvalidSqlException exception)
