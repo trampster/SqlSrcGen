@@ -65,6 +65,19 @@ public class SelectParser : Parser
     {
         Expect(index, tokens, "from");
         Increment(ref index, 1, tokens);
+        while (true)
+        {
+            ParseTableOrSubQuery(ref index, tokens, queryInfo);
+            if (IsEnd(index, tokens) || tokens.GetValue(index) != ",")
+            {
+                break;
+            }
+            Increment(ref index, 1, tokens);
+        }
+    }
+
+    void ParseTableOrSubQuery(ref int index, Span<Token> tokens, QueryInfo queryInfo)
+    {
         if (tokens.GetValue(index) == "(")
         {
             throw new NotImplementedException();
