@@ -34,7 +34,7 @@ public class SqlGeneratorTests
             "}" + Environment.NewLine;
 
         // act
-        generator.GenerateDatabaseObjects(databaseInfo, stringBuilder);
+        generator.GenerateDatabaseObjects(databaseInfo, stringBuilder, Mock.Of<IDiagnosticsReporter>());
 
         // assert
         var source = stringBuilder.ToString();

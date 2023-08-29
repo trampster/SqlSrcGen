@@ -186,7 +186,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         return true;
     }
 
-    bool GenerateCSharpType(string name, Column[] columns, DiagnosticsReporter reporter, SourceBuilder builder)
+    bool GenerateCSharpType(string name, Column[] columns, IDiagnosticsReporter reporter, SourceBuilder builder)
     {
         if (_cSharpTypes.TryGetValue(name, out var existingTypeColumns))
         {
@@ -202,7 +202,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         return true;
     }
 
-    (string methodName, string csharpType) GetMethodDetailsFromPath(string path, DiagnosticsReporter reporter)
+    (string methodName, string csharpType) GetMethodDetailsFromPath(string path, IDiagnosticsReporter reporter)
     {
         var fileName = Path.GetFileNameWithoutExtension(path);
         var parts = fileName.Split('_');
@@ -243,7 +243,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         return queryInfo;
     }
 
-    public void GenerateDatabaseObjects(DatabaseInfo databaseInfo, SourceBuilder builder, DiagnosticsReporter reporter)
+    public void GenerateDatabaseObjects(DatabaseInfo databaseInfo, SourceBuilder builder, IDiagnosticsReporter reporter)
     {
         foreach (var table in databaseInfo.Tables)
         {

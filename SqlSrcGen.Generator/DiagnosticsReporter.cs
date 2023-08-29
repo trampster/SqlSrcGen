@@ -8,6 +8,10 @@ public interface IDiagnosticsReporter
     string Path { get; set; }
 
     void Warning(ErrorCode code, string message, Token token);
+
+    void Warning(ErrorCode errorCode, string message);
+
+    void Error(ErrorCode errorCode, string message);
 }
 
 public class DiagnosticsReporter : IDiagnosticsReporter
