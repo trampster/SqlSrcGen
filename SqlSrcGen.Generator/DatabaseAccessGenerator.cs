@@ -14,7 +14,7 @@ public class DatabaseAccessGenerator
         builder.AppendLine("using SqlSrcGen;");
     }
 
-    public void Generate(SourceBuilder builder, DatabaseInfo databaseInfo)
+    public void Generate(SourceBuilder builder, DatabaseInfo databaseInfo, List<QueryInfo> queries)
     {
 
         builder.AppendLine("public class Database : IDisposable");
@@ -69,6 +69,18 @@ public class DatabaseAccessGenerator
             }
 
             GenerateDeleteAll(table, builder);
+        }
+
+        foreach (var query in queries)
+        {
+            switch (query.QueryType)
+            {
+                case QueryType.Select:
+                    GenerateSelect(builder, query.Columns, query.QueryString, query.MethodName, query.CSharpName);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         builder.DecreaseIndent();
@@ -438,7 +450,7 @@ public class DatabaseAccessGenerator
         builder.AppendLine("    {");
         builder.AppendLine();
 
-        GenerateReadRow(table, builder, statementPointerFieldName);
+        GenerateReadRow(table.Columns, builder, statementPointerFieldName);
 
         builder.AppendLine("        return true;");
 
@@ -469,10 +481,10 @@ public class DatabaseAccessGenerator
         builder.AppendLine();
     }
 
-    void GenerateReadRow(Table table, SourceBuilder builder, string statementPointerFieldName)
+    void GenerateReadRow(IEnumerable<Column> columns, SourceBuilder builder, string statementPointerFieldName)
     {
         int columnIndex = 0;
-        foreach (var column in table.Columns)
+        foreach (var column in columns)
         {
             if (!column.NotNull && column.TypeAffinity != TypeAffinity.BLOB && column.TypeAffinity != TypeAffinity.TEXT)
             {
@@ -600,13 +612,13 @@ public class DatabaseAccessGenerator
         builder.AppendLine($"}}");
     }
 
-    void GenerateGetAll(Table table, SourceBuilder builder)
+    void GenerateSelect(SourceBuilder builder, IEnumerable<Column> columns, string query, string methodName, string csharpName)
     {
-        var query = $"SELECT * FROM {table.SqlName};";
-        string getAllSqlBytesFieldName = $"_queryAll{table.CSharpName}sBytes";
+        string lowerMethodName = $"{char.ToLowerInvariant(methodName[0])}{methodName.Substring(1, methodName.Length - 1)}";
+        string getAllSqlBytesFieldName = $"_{lowerMethodName}Bytes";
         AppendQueryBytesField(builder, getAllSqlBytesFieldName, query);
 
-        string statementPointerFieldName = $"_query{table.CSharpName}Statement";
+        string statementPointerFieldName = $"_{lowerMethodName}Statement";
 
         builder.AppendLine($"IntPtr {statementPointerFieldName} = IntPtr.Zero;");
 
@@ -614,7 +626,7 @@ public class DatabaseAccessGenerator
 
         builder.AppendLine();
 
-        builder.AppendLine($"public void All{table.CSharpName}s(List<{table.CSharpName}> list)");
+        builder.AppendLine($"public void {methodName}(List<{csharpName}> list)");
         builder.AppendLine("{");
         builder.AppendLine($"    if ({statementPointerFieldName} == IntPtr.Zero)");
         builder.AppendLine("    {");
@@ -635,10 +647,10 @@ public class DatabaseAccessGenerator
         builder.AppendLine("    int index = 0;");
         builder.AppendLine("    while (result == Result.Row)");
         builder.AppendLine("    {");
-        builder.AppendLine($"        {table.CSharpName}? row = null;");
+        builder.AppendLine($"        {csharpName}? row = null;");
         builder.AppendLine("        if (index >= list.Count)");
         builder.AppendLine("        {");
-        builder.AppendLine($"            row = new {table.CSharpName}();");
+        builder.AppendLine($"            row = new {csharpName}();");
         builder.AppendLine("            list.Add(row);");
         builder.AppendLine("        }");
         builder.AppendLine("        else");
@@ -647,7 +659,7 @@ public class DatabaseAccessGenerator
         builder.AppendLine("        }");
         builder.AppendLine();
 
-        GenerateReadRow(table, builder, statementPointerFieldName);
+        GenerateReadRow(columns, builder, statementPointerFieldName);
 
         builder.AppendLine($"        result = SqliteNativeMethods.sqlite3_step({statementPointerFieldName});");
         builder.AppendLine($"        index++;");
@@ -671,6 +683,13 @@ public class DatabaseAccessGenerator
         builder.AppendLine($"    }}");
         builder.AppendLine($"}}");
         builder.AppendLine();
+    }
+
+    void GenerateGetAll(Table table, SourceBuilder builder)
+    {
+        var query = $"SELECT * FROM {table.SqlName};";
+
+        GenerateSelect(builder, table.Columns, query, $"All{table.CSharpName}s", table.CSharpName);
     }
 
     string BuildInsertQuery(Table table)

@@ -1,13 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 
 namespace SqlSrcGen.Generator;
 
+public enum QueryType
+{
+    Select,
+    Insert,
+    Delete
+}
+
 public class QueryInfo
 {
+    public string MethodName { get; set; }
     public string QueryString { get; set; }
     public string CSharpName { get; set; }
+    public QueryType QueryType { get; set; }
 
     List<Func<List<(string, Table)>, List<Column>>> _columnGenerators = new();
     public void AddColumnsGenerator(Func<List<(string, Table)>, List<Column>> generator)

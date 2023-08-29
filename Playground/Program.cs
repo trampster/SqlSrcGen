@@ -12,7 +12,7 @@ database.CreateContactTable();
 database.InsertContact(new Contact() { Name = "Bob", Email = "bob@marley.com", Age = 12, Height = 167.8, PrivateKey = new byte[] { 1, 2, 3, 4 }, Mana = new Numeric(24.4d) });
 
 var list = new List<Contact>();
-database.AllContacts(list);
+database.GetOldContacts(list);
 
 foreach (var contact in list)
 {

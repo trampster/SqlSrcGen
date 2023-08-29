@@ -14,5 +14,9 @@ public enum ErrorCode
     // Not supported
     SSG0005,
     // missing SqlSchema.sql
-    SSG0006
+    SSG0006,
+    // invalid .sql filename
+    SSG0007,
+    // type mismatch
+    SSG0008,
 }

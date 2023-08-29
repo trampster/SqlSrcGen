@@ -55,4 +55,18 @@ public class DiagnosticsReporter : IDiagnosticsReporter
                     true),
                 null));
     }
+
+    public void Error(ErrorCode errorCode, string message)
+    {
+        _context.ReportDiagnostic(
+            Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    errorCode.ToString(),
+                    "SQL Warning",
+                    message,
+                    "SQL",
+                    DiagnosticSeverity.Error,
+                    true),
+                null));
+    }
 }

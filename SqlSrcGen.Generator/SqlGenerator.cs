@@ -86,15 +86,20 @@ public class SqlGenerator : Parser, ISourceGenerator
 
             var reporter = new DiagnosticsReporter(context);
 
+            List<QueryInfo> queries = new();
+            AdditionalText currentFile = null;
+
             try
             {
                 var schemaFile = additionalFiles.Where(additionText => Path.GetFileName(additionText.Path) == "SqlSchema.sql").FirstOrDefault();
                 if (schemaFile == null)
                 {
                     //no schema which means we can't generate queries as we don't know the table definitions
-                    reporter.Warning(ErrorCode.SSG0006, "Did not find a SqlSchmea.sql file, add one and include it as additional AdditionalFiles in your project file.");
+                    reporter.Warning(ErrorCode.SSG0006, "Did not find a SqlSchema.sql file, add one and include it as additional AdditionalFiles in your project file.");
                     return;
                 }
+                currentFile = schemaFile;
+
                 reporter.Path = schemaFile.Path;
                 DiagnosticsReporter = reporter;
                 foreach (var parser in _parsers)
@@ -103,17 +108,32 @@ public class SqlGenerator : Parser, ISourceGenerator
                 }
 
                 ProcessSqlSchema(schemaFile.GetText().ToString(), _databaseInfo);
-                GenerateDatabaseObjects(_databaseInfo, builder);
+                GenerateDatabaseObjects(_databaseInfo, builder, reporter);
 
                 foreach (var selectQueryFile in additionalFiles.Where(file => Path.GetFileName(file.Path).StartsWith("Select")))
                 {
-                    reporter.Path = schemaFile.Path;
-                    ProcessSelectQuery(schemaFile.GetText().ToString());
+                    currentFile = selectQueryFile;
+                    reporter.Path = selectQueryFile.Path;
+                    string query = selectQueryFile.GetText().ToString();
+                    var queryInfo = ProcessSelectQuery(query);
+                    queryInfo.QueryString = query;
+                    // file name must follow convention Select_CSharpMethodName_CSharpType.sql
+                    (string methodName, string csharpName) = GetMethodDetailsFromPath(selectQueryFile.Path, reporter);
+                    if (methodName == null || csharpName == null)
+                    {
+                        continue;
+                    }
+                    queryInfo.MethodName = methodName;
+                    queryInfo.CSharpName = csharpName;
+
+                    GenerateCSharpType(queryInfo.CSharpName, queryInfo.Columns.ToArray(), reporter, builder);
+
+                    queries.Add(queryInfo);
                 }
             }
             catch (InvalidSqlException exception)
             {
-                var sqlFile = additionalFiles.First();
+                var sqlFile = currentFile;
 
                 var token = exception.Token;
 
@@ -135,7 +155,7 @@ public class SqlGenerator : Parser, ISourceGenerator
 
 
             builder.AppendLine();
-            databaseAccessGenerator.Generate(builder, _databaseInfo);
+            databaseAccessGenerator.Generate(builder, _databaseInfo, queries);
 
 
             builder.DecreaseIndent();
@@ -145,6 +165,53 @@ public class SqlGenerator : Parser, ISourceGenerator
             var code = builder.ToString();
             context.AddSource($"SqlSchema.g.cs", code);
         }
+    }
+
+    Dictionary<string, Column[]> _cSharpTypes = new();
+
+    bool DoColumnsMatch(Column[] existing, Column[] newColumns)
+    {
+        if (existing.Length != newColumns.Length)
+        {
+
+            return false;
+        }
+        foreach (var newColumn in newColumns)
+        {
+            if (!existing.Any(col => col.CSharpName == newColumn.CSharpName))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool GenerateCSharpType(string name, Column[] columns, DiagnosticsReporter reporter, SourceBuilder builder)
+    {
+        if (_cSharpTypes.TryGetValue(name, out var existingTypeColumns))
+        {
+            if (!DoColumnsMatch(columns, existingTypeColumns))
+            {
+                reporter.Error(ErrorCode.SSG0008, $"Type mismatch, type {name} already exists with different properties");
+                return false;
+            }
+            return true;
+        }
+        _cSharpTypes.Add(name, columns);
+        GenerateClassRecord(name, columns, builder);
+        return true;
+    }
+
+    (string methodName, string csharpType) GetMethodDetailsFromPath(string path, DiagnosticsReporter reporter)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(path);
+        var parts = fileName.Split('_');
+        if (parts.Length != 3)
+        {
+            reporter.Warning(ErrorCode.SSG0007, $"Expected sql file name {fileName} to be in form QueryType_MethodName_CSharpType.sql");
+            return (null, null);
+        }
+        return (parts[1], parts[2]);
     }
 
     public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo)
@@ -165,7 +232,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    public void ProcessSelectQuery(string selectText)
+    public QueryInfo ProcessSelectQuery(string selectText)
     {
         var tokensList = _tokenizer.Tokenize(selectText);
         var tokens = tokensList.ToArray().AsSpan();
@@ -173,9 +240,10 @@ public class SqlGenerator : Parser, ISourceGenerator
         int index = 0;
         _selectParser.Parse(ref index, tokens, queryInfo);
         queryInfo.Process();
+        return queryInfo;
     }
 
-    public void GenerateDatabaseObjects(DatabaseInfo databaseInfo, SourceBuilder builder)
+    public void GenerateDatabaseObjects(DatabaseInfo databaseInfo, SourceBuilder builder, DiagnosticsReporter reporter)
     {
         foreach (var table in databaseInfo.Tables)
         {
@@ -183,26 +251,31 @@ public class SqlGenerator : Parser, ISourceGenerator
             {
                 continue;
             }
-            builder.AppendLine($"public record {table.CSharpName}");
-            builder.AppendLine("{");
-            builder.IncreaseIndent();
-
-            foreach (var column in table.Columns)
-            {
-                builder.AppendStart($"public {column.CSharpType} {column.CSharpName} {{ get; set; }}");
-                if (column.CSharpType == "string")
-                {
-                    builder.Append(" = \"\";");
-                }
-                if (column.CSharpType == "byte[]")
-                {
-                    builder.Append(" = new byte[0];");
-                }
-                builder.AppendLine();
-            }
-            builder.DecreaseIndent();
-            builder.AppendLine("}");
+            GenerateCSharpType(table.CSharpName, table.Columns.ToArray(), reporter, builder);
         }
+    }
+
+    void GenerateClassRecord(string className, IEnumerable<Column> columns, SourceBuilder builder)
+    {
+        builder.AppendLine($"public record {className}");
+        builder.AppendLine("{");
+        builder.IncreaseIndent();
+
+        foreach (var column in columns)
+        {
+            builder.AppendStart($"public {column.CSharpType} {column.CSharpName} {{ get; set; }}");
+            if (column.CSharpType == "string")
+            {
+                builder.Append(" = \"\";");
+            }
+            if (column.CSharpType == "byte[]")
+            {
+                builder.Append(" = new byte[0];");
+            }
+            builder.AppendLine();
+        }
+        builder.DecreaseIndent();
+        builder.AppendLine("}");
     }
 
     int IndexOf(Span<Token> tokens, string value)

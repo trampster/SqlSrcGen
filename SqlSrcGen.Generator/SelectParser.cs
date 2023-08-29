@@ -36,6 +36,7 @@ public class SelectParser : Parser
     void ParseSelectStatement(ref int index, Span<Token> tokens, QueryInfo queryInfo)
     {
         Expect(index, tokens, "select");
+        queryInfo.QueryType = QueryType.Select;
         Increment(ref index, 1, tokens);
         switch (tokens.GetValue(index))
         {
