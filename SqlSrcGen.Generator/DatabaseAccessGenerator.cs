@@ -76,7 +76,7 @@ public class DatabaseAccessGenerator
             switch (query.QueryType)
             {
                 case QueryType.Select:
-                    GenerateSelect(builder, query.Columns, query.QueryString, query.MethodName, query.CSharpName);
+                    GenerateSelect(builder, query.Columns, query.QueryString, query.MethodName, query.CSharpResultType);
                     break;
                 default:
                     throw new NotImplementedException();

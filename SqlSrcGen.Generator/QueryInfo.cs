@@ -14,7 +14,8 @@ public class QueryInfo
 {
     public string MethodName { get; set; }
     public string QueryString { get; set; }
-    public string CSharpName { get; set; }
+    public string CSharpResultType { get; set; }
+    public string CSharpInputType { get; set; }
     public QueryType QueryType { get; set; }
 
     List<Func<List<(string, Table)>, List<Column>>> _columnGenerators = new();

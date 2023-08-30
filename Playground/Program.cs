@@ -1,6 +1,6 @@
 ﻿using SqlSrcGen;
 
-string databaseName = "database.sql";
+string databaseName = "database.db";
 if (File.Exists(databaseName))
 {
     File.Delete(databaseName);

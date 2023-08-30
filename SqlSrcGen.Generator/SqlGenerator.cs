@@ -23,7 +23,7 @@ public class SqlGenerator : Parser, ISourceGenerator
     public SqlGenerator()
     {
         // while (!System.Diagnostics.Debugger.IsAttached)
-        //     System.Threading.Thread.Sleep(500);
+        //     System.Threading.Thread.Sleep(500);//
         _databaseInfo = new DatabaseInfo();
         _literalValueParser = new LiteralValueParser();
         _numberParser = new NumberParser();
@@ -110,23 +110,27 @@ public class SqlGenerator : Parser, ISourceGenerator
                 ProcessSqlSchema(schemaFile.GetText().ToString(), _databaseInfo);
                 GenerateDatabaseObjects(_databaseInfo, builder, reporter);
 
-                foreach (var selectQueryFile in additionalFiles.Where(file => Path.GetFileName(file.Path).StartsWith("Select")))
+                foreach (var selectQueryFile in additionalFiles.Where(file => Path.GetExtension(file.Path) == ".sql" && Path.GetFileName(file.Path) != "SqlSchema.sql"))
                 {
                     currentFile = selectQueryFile;
                     reporter.Path = selectQueryFile.Path;
                     string query = selectQueryFile.GetText().ToString();
-                    var queryInfo = ProcessSelectQuery(query);
+                    var queryInfo = ProcessQuery(query);
                     queryInfo.QueryString = query;
                     // file name must follow convention Select_CSharpMethodName_CSharpType.sql
-                    (string methodName, string csharpName) = GetMethodDetailsFromPath(selectQueryFile.Path, reporter);
-                    if (methodName == null || csharpName == null)
+                    (string csharpResultType, string methodName, string csharpInputType) = GetMethodDetailsFromPath(selectQueryFile.Path, reporter);
+                    if (csharpResultType == null || methodName == null || csharpInputType == null)
                     {
                         continue;
                     }
                     queryInfo.MethodName = methodName;
-                    queryInfo.CSharpName = csharpName;
+                    queryInfo.CSharpResultType = csharpResultType;
+                    queryInfo.CSharpInputType = csharpInputType;
 
-                    GenerateCSharpType(queryInfo.CSharpName, queryInfo.Columns.ToArray(), reporter, builder);
+                    if (queryInfo.CSharpResultType != "void")
+                    {
+                        GenerateCSharpType(queryInfo.CSharpResultType, queryInfo.Columns.ToArray(), reporter, builder);
+                    }
 
                     queries.Add(queryInfo);
                 }
@@ -202,16 +206,16 @@ public class SqlGenerator : Parser, ISourceGenerator
         return true;
     }
 
-    (string methodName, string csharpType) GetMethodDetailsFromPath(string path, IDiagnosticsReporter reporter)
+    (string resultCSharpType, string methodName, string inputCSharpType) GetMethodDetailsFromPath(string path, IDiagnosticsReporter reporter)
     {
         var fileName = Path.GetFileNameWithoutExtension(path);
         var parts = fileName.Split('_');
         if (parts.Length != 3)
         {
             reporter.Warning(ErrorCode.SSG0007, $"Expected sql file name {fileName} to be in form QueryType_MethodName_CSharpType.sql");
-            return (null, null);
+            return (null, null, null);
         }
-        return (parts[1], parts[2]);
+        return (parts[0], parts[1], parts[2]);
     }
 
     public void ProcessSqlSchema(string schemaText, DatabaseInfo databaseInfo)
@@ -232,13 +236,16 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
     }
 
-    public QueryInfo ProcessSelectQuery(string selectText)
+    public QueryInfo ProcessQuery(string selectText)
     {
         var tokensList = _tokenizer.Tokenize(selectText);
         var tokens = tokensList.ToArray().AsSpan();
         var queryInfo = new QueryInfo();
         int index = 0;
-        _selectParser.Parse(ref index, tokens, queryInfo);
+        if (!_selectParser.Parse(ref index, tokens, queryInfo))
+        {
+            throw new InvalidSqlException("Unsupported query", tokens[index]);
+        }
         queryInfo.Process();
         return queryInfo;
     }

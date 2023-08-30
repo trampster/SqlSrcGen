@@ -28,7 +28,7 @@
     </ItemGroup>
 
     <ItemGroup>
-       <AdditionalFiles Include="SqlSchema.sql" />
+       <AdditionalFiles Include="*.sql" />
     </ItemGroup>
 
 </Project>
