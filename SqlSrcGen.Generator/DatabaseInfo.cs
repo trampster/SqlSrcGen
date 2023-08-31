@@ -13,7 +13,7 @@ namespace SqlSrcGen.Generator
         BLOB
     }
 
-    public class Column
+    public record Column
     {
         public string SqlName { get; set; }
         public string SqlType { get; set; }
