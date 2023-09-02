@@ -35,6 +35,8 @@ public class QueryInfo
     readonly List<(string, Table)> _fromTables = new();
     public List<(string, Table)> FromTables => _fromTables;
 
+
+
     public void Process()
     {
         foreach (var generator in _columnGenerators)
@@ -50,20 +52,63 @@ public class QueryInfo
         {
             var column = Columns[index];
             var cSharpName = column.CSharpName;
-            for (int otherColumnIndex = 0; otherColumnIndex < Columns.Count; otherColumnIndex++)
-            {
-                if (index == otherColumnIndex)
-                {
-                    continue;
-                }
-                var otherColumn = Columns[otherColumnIndex];
 
-                if (otherColumn.CSharpName == cSharpName &&
-                    otherColumn.Table != column.Table)
+            var matchingIndexes = GetColumnsWithSameCSharpName(cSharpName, index);
+            if (matchingIndexes.Any())
+            {
+                var otherTablesIndexes = matchingIndexes
+                    .Where(matchingIndex => Columns[matchingIndex].Table != column.Table);
+                if (otherTablesIndexes.Any())
                 {
-                    Columns[otherColumnIndex] = otherColumn with { CSharpName = $"{otherColumn.Table.CSharpName}{otherColumn.CSharpName}" };
-                    Columns[index] = column with { CSharpName = $"{column.Table.CSharpName}{cSharpName}" };
+                    //need to add tableName to columns
+                    foreach (int matchingIndex in matchingIndexes)
+                    {
+                        var matchingColumn = Columns[matchingIndex];
+                        if (matchingColumn.CSharpName != cSharpName)
+                        {
+                            //already renamed as RenameColumn renames all duplicate columns from the same table
+                            continue;
+                        }
+                        RenameColumn(matchingIndex, $"{matchingColumn.Table.CSharpName}{matchingColumn.CSharpName}");
+                    }
+                    RenameColumn(index, $"{column.Table.CSharpName}{column.CSharpName}");
                 }
+            }
+        }
+    }
+
+    IEnumerable<int> GetColumnsWithSameCSharpName(string csharpName, int excludeIndex)
+    {
+        for (int index = 0; index < Columns.Count; index++)
+        {
+            if (index == excludeIndex)
+            {
+                continue;
+            }
+            var column = Columns[index];
+            if (column.CSharpName == csharpName)
+            {
+                yield return index;
+            }
+        }
+    }
+
+    void RenameColumn(int index, string newName)
+    {
+        string nameToTry = newName;
+        int attempt = 1;
+        var column = Columns[index];
+
+        while (GetColumnsWithSameCSharpName(nameToTry, index).Any())
+        {
+            nameToTry = $"{newName}{attempt}";
+        }
+        // rename all columns in with the same table and sql name, (you can select the same column multiple times)
+        for (int columnIndex = 0; columnIndex < Columns.Count; columnIndex++)
+        {
+            if (Columns[columnIndex].Table == column.Table && Columns[columnIndex].SqlName == column.SqlName)
+            {
+                Columns[columnIndex] = column with { CSharpName = nameToTry };
             }
         }
     }

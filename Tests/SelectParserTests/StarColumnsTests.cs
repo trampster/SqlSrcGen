@@ -171,4 +171,43 @@ public class StarColumnsTests
         Assert.That(queryInfo.Columns[2].SqlName, Is.EqualTo("name"));
         Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("LocationName"));
     }
+
+    [Test]
+    public void Select_ConflictingColumnsAfterAddingTablename_AddsNumber()
+    {
+        // arrange
+        var databaseInfo = new DatabaseInfo();
+
+        var contactsTable = new Table()
+        {
+            SqlName = "contact",
+            CSharpName = "Contact"
+        };
+        contactsTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        contactsTable.AddColumn(new Column() { SqlName = "contactName", CSharpName = "ContactName" });
+        databaseInfo.Tables.Add(contactsTable);
+
+        var jobTable = new Table()
+        {
+            SqlName = "job",
+            CSharpName = "Job"
+        };
+        jobTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        databaseInfo.Tables.Add(jobTable);
+
+        SelectParser parser = new SelectParser(databaseInfo);
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize("SELECT * FROM contact, job").ToArray().AsSpan();
+        int index = 0;
+        var queryInfo = new QueryInfo();
+
+        // act
+        parser.Parse(ref index, tokens, queryInfo);
+        queryInfo.Process();
+
+        // assert
+        Assert.That(queryInfo.Columns[0].CSharpName, Is.EqualTo("ContactName1"));
+        Assert.That(queryInfo.Columns[1].CSharpName, Is.EqualTo("ContactName"));
+        Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("JobName"));
+    }
 }
