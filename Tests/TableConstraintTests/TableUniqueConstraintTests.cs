@@ -75,7 +75,7 @@ public class TableUniqueConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Column is already unqiue because it's a primary key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(79));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(79));
             Assert.That(exception.Token.Position, Is.EqualTo(79));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -98,7 +98,7 @@ public class TableUniqueConstraintTests
         {
             // assert
             Assert.That(exception.Message, Is.EqualTo("Columns are already unqiue because they are a primary key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(83));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(83));
             Assert.That(exception.Token.Position, Is.EqualTo(83));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -121,7 +121,7 @@ public class TableUniqueConstraintTests
         {
             // assert
             Assert.That(exception.Message, Is.EqualTo("Columns are already unique"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(78));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(78));
             Assert.That(exception.Token.Position, Is.EqualTo(78));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }

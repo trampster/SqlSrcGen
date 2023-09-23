@@ -130,7 +130,7 @@ public class NotNullConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Invalid column constraint, did you mean 'not null'?"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(39));
         }
     }

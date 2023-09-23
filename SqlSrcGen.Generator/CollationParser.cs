@@ -16,7 +16,7 @@ public class CollationParser : Parser
             case "rtrim":
                 break;
             default:
-                DiagnosticsReporter.Warning(ErrorCode.SSG0002, "Collation types other than nocase, binary and rtrim require custom collation creation", tokens[index]);
+                DiagnosticsReporter!.Warning(ErrorCode.SSG0002, "Collation types other than nocase, binary and rtrim require custom collation creation", tokens[index]);
                 break;
         }
         index++;
@@ -28,7 +28,7 @@ public class CollationParser : Parser
         ParseCollationStatement(ref index, columnDefinition);
         if (column.TypeAffinity != TypeAffinity.TEXT)
         {
-            DiagnosticsReporter.Warning(ErrorCode.SSG0003, "Collation only affects Text columns", columnDefinition[startIndex]);
+            DiagnosticsReporter!.Warning(ErrorCode.SSG0003, "Collation only affects Text columns", columnDefinition[startIndex]);
         }
     }
 }

@@ -30,7 +30,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         _typeNameParser = new TypeNameParser();
         _collationParser = new CollationParser();
         _expressionParser = new ExpressionParser(_databaseInfo, _literalValueParser, _typeNameParser, _collationParser);
-        _selectParser = new SelectParser(_databaseInfo);
+        _selectParser = new SelectParser(_databaseInfo, _expressionParser);
         _parsers = new List<IParser>
         {
             _literalValueParser,
@@ -43,8 +43,8 @@ public class SqlGenerator : Parser, ISourceGenerator
         _tokenizer = new Tokenizer();
     }
 
-    IDiagnosticsReporter _diagnosticsReporter;
-    public override IDiagnosticsReporter DiagnosticsReporter
+    IDiagnosticsReporter? _diagnosticsReporter;
+    public override IDiagnosticsReporter? DiagnosticsReporter
     {
         get => _diagnosticsReporter;
         set
@@ -87,7 +87,7 @@ public class SqlGenerator : Parser, ISourceGenerator
             var reporter = new DiagnosticsReporter(context);
 
             List<QueryInfo> queries = new();
-            AdditionalText currentFile = null;
+            AdditionalText? currentFile = null;
 
             try
             {
@@ -107,18 +107,18 @@ public class SqlGenerator : Parser, ISourceGenerator
                     parser.DiagnosticsReporter = reporter;
                 }
 
-                ProcessSqlSchema(schemaFile.GetText().ToString(), _databaseInfo);
+                ProcessSqlSchema(schemaFile.GetText()!.ToString(), _databaseInfo);
                 GenerateDatabaseObjects(_databaseInfo, builder, reporter);
 
                 foreach (var selectQueryFile in additionalFiles.Where(file => Path.GetExtension(file.Path) == ".sql" && Path.GetFileName(file.Path) != "SqlSchema.sql"))
                 {
                     currentFile = selectQueryFile;
                     reporter.Path = selectQueryFile.Path;
-                    string query = selectQueryFile.GetText().ToString();
+                    string query = selectQueryFile.GetText()!.ToString();
                     var queryInfo = ProcessQuery(query);
                     queryInfo.QueryString = query;
                     // file name must follow convention Select_CSharpMethodName_CSharpType.sql
-                    (string csharpResultType, string methodName, string csharpInputType) = GetMethodDetailsFromPath(selectQueryFile.Path, reporter);
+                    (string? csharpResultType, string? methodName, string? csharpInputType) = GetMethodDetailsFromPath(selectQueryFile.Path, reporter);
                     if (csharpResultType == null || methodName == null || csharpInputType == null)
                     {
                         continue;
@@ -150,10 +150,11 @@ public class SqlGenerator : Parser, ISourceGenerator
                             "SQL",
                             DiagnosticSeverity.Error,
                             true),
-                        Location.Create(sqlFile.Path,
-                        TextSpan.FromBounds(token.Position, token.Value.Length + token.Position),
+                        Location.Create(sqlFile!.Path,
+                        TextSpan.FromBounds(token?.Position ?? 0, token?.Value.Length ?? 0 + token?.Position ?? 0),
                         new LinePositionSpan(
-                            new LinePosition(token.Line, token.CharacterInLine), new LinePosition(token.Line, token.CharacterInLine + token.Value.Length)))));
+                            new LinePosition(token?.Line ?? 0, token?.CharacterInLine ?? 0),
+                            new LinePosition(token?.Line ?? 0, token?.CharacterInLine ?? 0 + token?.Value.Length ?? 0)))));
                 return;
             }
 
@@ -206,7 +207,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         return true;
     }
 
-    (string resultCSharpType, string methodName, string inputCSharpType) GetMethodDetailsFromPath(string path, IDiagnosticsReporter reporter)
+    (string? resultCSharpType, string? methodName, string? inputCSharpType) GetMethodDetailsFromPath(string path, IDiagnosticsReporter reporter)
     {
         var fileName = Path.GetFileNameWithoutExtension(path);
         var parts = fileName.Split('_');
@@ -830,7 +831,7 @@ public class SqlGenerator : Parser, ISourceGenerator
             }
             if (tokenValue == "match")
             {
-                DiagnosticsReporter.Warning(
+                DiagnosticsReporter!.Warning(
                     ErrorCode.SSG0004,
                     "SQLite parses MATCH clauses, but does not enforce them. All foreign key constraints in SQLite are handled as if MATCH SIMPLE were specified.",
                     tokens[index]);
@@ -1085,8 +1086,8 @@ public class SqlGenerator : Parser, ISourceGenerator
     (Token token, Column column)? ParseIndexedColumn(ref int index, Span<Token> tokens, Table table)
     {
         AssertEnoughTokens(tokens, index);
-        Token token = null;
-        Column column = null;
+        Token? token = null;
+        Column? column = null;
         bool expression = false;
         if (IsExistingColumn(tokens[index], table))
         {
@@ -1097,7 +1098,8 @@ public class SqlGenerator : Parser, ISourceGenerator
         }
         else
         {
-            if (!_expressionParser.Parse(ref index, tokens, table))
+            var expr = _expressionParser.Parse(ref index, tokens, table);
+            if (expr == null)
             {
                 throw new InvalidSqlException("Expected column name or expression", tokens[index]);
             }
@@ -1127,7 +1129,7 @@ public class SqlGenerator : Parser, ISourceGenerator
         {
             return null;
         }
-        return (token, column);
+        return (token!, column!);
     }
 
     /// <summary>

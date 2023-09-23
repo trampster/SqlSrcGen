@@ -58,7 +58,7 @@ public class TablePrimaryKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Table already has a primary key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(71));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(71));
             Assert.That(exception.Token.Position, Is.EqualTo(71));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -80,7 +80,7 @@ public class TablePrimaryKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Table already has a primary key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(71));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(71));
             Assert.That(exception.Token.Position, Is.EqualTo(71));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -102,7 +102,7 @@ public class TablePrimaryKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Column is already unique"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(79));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(79));
             Assert.That(exception.Token.Position, Is.EqualTo(79));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -125,7 +125,7 @@ public class TablePrimaryKeyConstraintTests
         {
             // assert
             Assert.That(exception.Message, Is.EqualTo("Table already has a primary key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(83));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(83));
             Assert.That(exception.Token.Position, Is.EqualTo(83));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -148,7 +148,7 @@ public class TablePrimaryKeyConstraintTests
         {
             // assert
             Assert.That(exception.Message, Is.EqualTo("Columns are already unique"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(78));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(78));
             Assert.That(exception.Token.Position, Is.EqualTo(78));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }

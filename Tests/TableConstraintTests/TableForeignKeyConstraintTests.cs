@@ -90,7 +90,7 @@ public class TableForeignKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Referenced table doesn't have a matching foreign key"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(91));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(91));
             Assert.That(exception.Token.Position, Is.EqualTo(194));
             Assert.That(exception.Token.Line, Is.EqualTo(1));
         }
@@ -115,7 +115,7 @@ public class TableForeignKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Local and foreign column counts must match"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(83));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(83));
             Assert.That(exception.Token.Position, Is.EqualTo(191));
             Assert.That(exception.Token.Line, Is.EqualTo(1));
         }
@@ -140,7 +140,7 @@ public class TableForeignKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Referenced column street_number1 does not exist"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(126));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(126));
             Assert.That(exception.Token.Position, Is.EqualTo(234));
             Assert.That(exception.Token.Line, Is.EqualTo(1));
         }
@@ -165,7 +165,7 @@ public class TableForeignKeyConstraintTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Foreign table is not unique by these columns"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(83));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(83));
             Assert.That(exception.Token.Position, Is.EqualTo(191));
             Assert.That(exception.Token.Line, Is.EqualTo(1));
         }

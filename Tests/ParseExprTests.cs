@@ -48,7 +48,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, null);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -69,7 +69,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, null);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -90,7 +90,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, null);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -113,7 +113,7 @@ public class ParseExprTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Numbered parameter must be a positive integer"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(0));
         }
     }
@@ -146,7 +146,7 @@ public class ParseExprTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Parameter produces the same c# name as an existing parameter"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(0));
         }
     }
@@ -182,7 +182,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, currentTable);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -204,7 +204,7 @@ public class ParseExprTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Attached databases are not supported"));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(0));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(0));
             Assert.That(exception.Token.Position, Is.EqualTo(0));
             Assert.That(exception.Token.Line, Is.EqualTo(0));
         }
@@ -264,7 +264,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, null);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -301,7 +301,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -320,7 +320,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -339,7 +339,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -357,7 +357,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -378,7 +378,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -402,7 +402,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -423,7 +423,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -444,7 +444,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -464,7 +464,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -490,7 +490,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -511,7 +511,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 
@@ -533,7 +533,7 @@ public class ParseExprTests
         var result = _expressionParser.Parse(ref index, tokens, table);
 
         // assert
-        Assert.That(result, Is.True);
+        Assert.That(result, Is.Not.Null);
         Assert.That(index, Is.EqualTo(tokens.Length));
     }
 }

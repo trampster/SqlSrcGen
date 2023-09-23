@@ -17,7 +17,7 @@ public class Query
         {
             Number = _highestPararmeter,
             CSharpName = $"param{_highestPararmeter}",
-            SqlName = null
+            SqlName = ""
         });
     }
 
@@ -36,7 +36,7 @@ public class Query
         {
             Number = number,
             CSharpName = $"param{number}",
-            SqlName = null
+            SqlName = ""
         });
     }
 
@@ -80,6 +80,6 @@ public class Query
 public class Parameter
 {
     public uint Number { get; set; }
-    public string CSharpName { get; set; }
-    public string SqlName { get; set; }
+    public string CSharpName { get; set; } = "";
+    public string SqlName { get; set; } = "";
 }

@@ -26,7 +26,7 @@ public record Token
         TokenType = tokenType;
     }
 
-    public string Value { get; set; }
+    public string Value { get; set; } = "";
     public int Position { get; set; }
     // zero based line index
     public int Line { get; set; }

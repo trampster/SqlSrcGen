@@ -14,10 +14,10 @@ public enum QueryType
 
 public class QueryInfo
 {
-    public string MethodName { get; set; }
-    public string QueryString { get; set; }
-    public string CSharpResultType { get; set; }
-    public string CSharpInputType { get; set; }
+    public string MethodName { get; set; } = "";
+    public string QueryString { get; set; } = "";
+    public string CSharpResultType { get; set; } = "";
+    public string CSharpInputType { get; set; } = "";
     public QueryType QueryType { get; set; }
 
     List<Func<List<(string, Table)>, List<Column>>> _columnGenerators = new();
@@ -69,9 +69,9 @@ public class QueryInfo
                             //already renamed as RenameColumn renames all duplicate columns from the same table
                             continue;
                         }
-                        RenameColumn(matchingIndex, $"{matchingColumn.Table.CSharpName}{matchingColumn.CSharpName}");
+                        RenameColumn(matchingIndex, $"{matchingColumn.Table!.CSharpName}{matchingColumn.CSharpName}");
                     }
-                    RenameColumn(index, $"{column.Table.CSharpName}{column.CSharpName}");
+                    RenameColumn(index, $"{column.Table!.CSharpName}{column.CSharpName}");
                 }
             }
         }

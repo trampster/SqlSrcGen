@@ -15,25 +15,25 @@ namespace SqlSrcGen.Generator
 
     public record Column
     {
-        public string SqlName { get; set; }
-        public string SqlType { get; set; }
-        public string CSharpName { get; set; }
-        public string CSharpType { get; set; }
+        public string SqlName { get; set; } = "";
+        public string SqlType { get; set; } = "";
+        public string CSharpName { get; set; } = "";
+        public string CSharpType { get; set; } = "";
         public TypeAffinity TypeAffinity { get; set; }
         public bool NotNull { get; set; }
         public bool PrimaryKey { get; set; }
         public bool AutoIncrement { get; set; }
         public bool Unique { get; set; }
 
-        public string CSharpParameterName => char.ToLowerInvariant(CSharpName[0]) + CSharpName.Substring(1, CSharpName.Length - 1);
+        public string CSharpParameterName => char.ToLowerInvariant(CSharpName![0]) + CSharpName.Substring(1, CSharpName.Length - 1);
 
-        public Table Table { get; set; }
+        public Table? Table { get; set; }
     }
 
     public class Table
     {
-        public string SqlName { get; set; }
-        public string CSharpName { get; set; }
+        public string SqlName { get; set; } = "";
+        public string CSharpName { get; set; } = "";
 
         readonly List<Column> _columns = new();
         public IEnumerable<Column> Columns => _columns;

@@ -48,7 +48,7 @@ public class SquareBacketNameTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Table maps to same csharp class name as an existing table"));
-            Assert.That(exception.Token.Line, Is.EqualTo(1));
+            Assert.That(exception.Token!.Line, Is.EqualTo(1));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
             Assert.That(exception.Token.Position, Is.EqualTo(49));
         }
@@ -93,7 +93,7 @@ public class SquareBacketNameTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Column maps to same csharp name as an existing column"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(35));
             Assert.That(exception.Token.Position, Is.EqualTo(35));
         }

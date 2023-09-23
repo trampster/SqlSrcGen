@@ -5,13 +5,13 @@ namespace SqlSrcGen.Generator;
 
 public interface IParser
 {
-    public Query Query
+    public Query? Query
     {
         get;
         set;
     }
 
-    public IDiagnosticsReporter DiagnosticsReporter
+    public IDiagnosticsReporter? DiagnosticsReporter
     {
         get;
         set;
@@ -20,13 +20,13 @@ public interface IParser
 
 public abstract class Parser : IParser
 {
-    public Query Query
+    public Query? Query
     {
         get;
         set;
     }
 
-    public virtual IDiagnosticsReporter DiagnosticsReporter
+    public virtual IDiagnosticsReporter? DiagnosticsReporter
     {
         get;
         set;

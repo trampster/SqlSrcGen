@@ -7,6 +7,7 @@
     <PackageId>SqlSrcGen.Generator</PackageId>
     <Version>0.1.3</Version>
     <Authors>Daniel Hughes</Authors>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

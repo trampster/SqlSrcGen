@@ -54,7 +54,7 @@ public class ReadBlobLiteralTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo(exceptionMessage));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(charactorInLine));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(charactorInLine));
             Assert.That(exception.Token.Position, Is.EqualTo(charactorInLine));
         }
     }

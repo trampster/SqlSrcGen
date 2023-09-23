@@ -19,7 +19,7 @@ public class Tokenizer
             {
                 break;
             }
-            text = ReadToken(text, out Token token, ref position, ref lineIndex, ref characterInLineIndex);
+            text = ReadToken(text, out Token? token, ref position, ref lineIndex, ref characterInLineIndex);
             if (token != null)
             {
                 tokens.Add(token);
@@ -53,7 +53,7 @@ public class Tokenizer
     }
 
 
-    bool ReadOperator(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    bool ReadOperator(ReadOnlySpan<char> text, out Token? read, ref int position, ref int lineIndex, ref int characterInLineIndex)
     {
         if (text.Length == 0)
         {
@@ -225,11 +225,11 @@ public class Tokenizer
     }
 
 
-    ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token read, ref int position, ref int lineIndex, ref int characterInLineIndex)
+    ReadOnlySpan<char> ReadToken(ReadOnlySpan<char> text, out Token? read, ref int position, ref int lineIndex, ref int characterInLineIndex)
     {
         if (ReadOperator(text, out read, ref position, ref lineIndex, ref characterInLineIndex))
         {
-            return text.Slice(read.Value.Length);
+            return text.Slice(read!.Value.Length);
         }
         switch (text[0])
         {

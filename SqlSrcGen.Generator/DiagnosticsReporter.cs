@@ -27,7 +27,7 @@ public class DiagnosticsReporter : IDiagnosticsReporter
     {
         get;
         set;
-    }
+    } = "";
 
     public void Warning(ErrorCode errorCode, string message, Token token)
     {

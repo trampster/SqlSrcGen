@@ -52,7 +52,7 @@ public class ReferencesConstraintTests
         {
             // assert
             Assert.That(exception.Message, Is.EqualTo("referenced table parent does not exist"));
-            Assert.That(exception.Token.Line, Is.EqualTo(1));
+            Assert.That(exception.Token!.Line, Is.EqualTo(1));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(41));
             Assert.That(exception.Token.Position, Is.EqualTo(87));
         }

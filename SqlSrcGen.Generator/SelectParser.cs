@@ -1,17 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SqlSrcGen.Generator;
 
 public class SelectParser : Parser
 {
     readonly DatabaseInfo _databaseInfo;
+    readonly ExpressionParser _expressionParser;
 
     public SelectParser(
-        DatabaseInfo databaseInfo)
+        DatabaseInfo databaseInfo,
+        ExpressionParser expressionParser)
     {
         _databaseInfo = databaseInfo;
+        _expressionParser = expressionParser;
     }
 
     public bool Parse(ref int index, Span<Token> tokens, QueryInfo queryInfo)
@@ -159,6 +164,33 @@ public class SelectParser : Parser
             Increment(ref index, 1, tokens);
             return;
         }
-        throw new NotImplementedException();
+        var token = tokens[index];
+        var expression = _expressionParser.Parse(ref index, tokens, null);
+        if (expression == null || expression.ExpressionType != ExpressionType.Column)
+        {
+            throw new InvalidSqlException("Expected column identifier", token);
+        }
+        queryInfo.AddColumnsGenerator(tables =>
+        {
+            var columns = new List<Column>();
+            if (expression.TableName != "")
+            {
+                foreach (var table in tables)
+                {
+                    foreach (var column in table.Item2.Columns)
+                    {
+                        if (column.SqlName.ToLowerInvariant() == expression.ColumnName?.ToLowerInvariant())
+                        {
+                            if (columns.Count() != 0)
+                            {
+                                throw new InvalidSqlException("Ambiguous column name", token);
+                            }
+                            columns.Add(column);
+                        }
+                    }
+                }
+            }
+            return columns;
+        });
     }
 }

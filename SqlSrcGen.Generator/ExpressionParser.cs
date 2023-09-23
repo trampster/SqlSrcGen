@@ -5,6 +5,33 @@ using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
 namespace SqlSrcGen.Generator;
 
+public enum ExpressionType
+{
+    Column,
+    Other
+}
+
+public class Expression
+{
+    public ExpressionType ExpressionType
+    {
+        get;
+        set;
+    } = ExpressionType.Other;
+
+    public string? ColumnName
+    {
+        get;
+        set;
+    }
+
+    public string? TableName
+    {
+        get;
+        set;
+    }
+}
+
 public class ExpressionParser : Parser
 {
     readonly LiteralValueParser _literalValueParser;
@@ -24,11 +51,12 @@ public class ExpressionParser : Parser
         _collationParser = collationParser;
     }
 
-    public bool Parse(ref int index, Span<Token> tokens, Table table, bool includeBinaryOperators = true)
+    public Expression? Parse(ref int index, Span<Token> tokens, Table? table, bool includeBinaryOperators = true)
     {
-        if (!ParseExpr(ref index, tokens, table))
+        var expression = ParseExpr(ref index, tokens, table);
+        if (expression == null)
         {
-            return false;
+            return null;
         }
         if (includeBinaryOperators && ParseBooleanOperator(ref index, tokens))
         {
@@ -36,45 +64,45 @@ public class ExpressionParser : Parser
         }
         if (index >= tokens.Length)
         {
-            return true;
+            return expression;
         }
         var tokenValue = tokens.GetValue(index);
         switch (tokenValue)
         {
             case "collate":
                 _collationParser.ParseCollationStatement(ref index, tokens);
-                return true;
+                return new Expression();
             case "not":
                 ParseNotStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "like":
                 ParseLikeStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "glob":
             case "regexp":
             case "match":
                 Increment(ref index, 1, tokens);
                 Parse(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "isnull":
             case "notnull":
                 index++;
-                return true;
+                return new Expression();
             case "is":
                 ParseIsStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "between":
                 ParseBetweenStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "in":
                 ParseInStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             default:
-                return true;
+                return expression;
         }
     }
 
-    void ParseInStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseInStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "in");
         Increment(ref index, 1, tokens);
@@ -123,23 +151,27 @@ public class ExpressionParser : Parser
         }
     }
 
-    void ParseBetweenStatement(ref int index, Span<Token> tokens, Table table)
+    Expression ParseBetweenStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "between");
         Increment(ref index, 1, tokens);
-        if (!Parse(ref index, tokens, table, false))
+        var expression = Parse(ref index, tokens, table, false);
+        if (expression == null)
         {
             throw new InvalidSqlException("Expected expression", tokens[index]);
         }
         Expect(index, tokens, "and");
         Increment(ref index, 1, tokens);
-        if (!Parse(ref index, tokens, table))
+        expression = Parse(ref index, tokens, table);
+        if (expression == null)
         {
             throw new InvalidSqlException("Expected expression", tokens[index]);
         }
+
+        return new Expression();
     }
 
-    void ParseIsStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseIsStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "is");
         Increment(ref index, 1, tokens);
@@ -157,7 +189,7 @@ public class ExpressionParser : Parser
         Parse(ref index, tokens, table);
     }
 
-    void ParseNotStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseNotStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "not");
         Increment(ref index, 1, tokens);
@@ -184,11 +216,12 @@ public class ExpressionParser : Parser
         }
     }
 
-    void ParseLikeStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseLikeStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "like");
         Increment(ref index, 1, tokens);
-        if (!Parse(ref index, tokens, table))
+        var expression = Parse(ref index, tokens, table);
+        if (expression == null)
         {
             throw new InvalidSqlException("Expected expression", tokens[index]);
         }
@@ -199,7 +232,8 @@ public class ExpressionParser : Parser
         if (tokens.GetValue(index) == "escape")
         {
             Increment(ref index, 1, tokens);
-            if (!Parse(ref index, tokens, table))
+            expression = Parse(ref index, tokens, table);
+            if (expression == null)
             {
                 throw new InvalidSqlException("Expected expression", tokens[index]);
             }
@@ -221,13 +255,13 @@ public class ExpressionParser : Parser
         return false;
     }
 
-    bool ParseBindParam(ref int index, Span<Token> tokens, Table table)
+    bool ParseBindParam(ref int index, Span<Token> tokens, Table? table)
     {
         var tokenValue = tokens.GetValue(index);
         if (tokenValue == "?")
         {
             // auto numbered binding (one higher than highest so far)
-            Query.AddAutoNumbered(tokens[index]);
+            Query!.AddAutoNumbered(tokens[index]);
             index++;
             return true;
         }
@@ -238,28 +272,28 @@ public class ExpressionParser : Parser
             {
                 throw new InvalidSqlException("Numbered parameter must be a positive integer", tokens[index]);
             }
-            Query.AddNumberedParameter(number, tokens[index]);
+            Query!.AddNumberedParameter(number, tokens[index]);
             index++;
             return true;
         }
         else if (tokenValue.StartsWith(":"))
         {
             // named parameter, these are also auto numbered
-            Query.AddNamedParameter(tokens[index].Value, tokens[index]);
+            Query!.AddNamedParameter(tokens[index].Value, tokens[index]);
             index++;
             return true;
         }
         else if (tokenValue.StartsWith("@"))
         {
             // named parameter, these are also auto numbered
-            Query.AddNamedParameter(tokens[index].Value, tokens[index]);
+            Query!.AddNamedParameter(tokens[index].Value, tokens[index]);
             index++;
             return true;
         }
         else if (tokenValue.StartsWith("$"))
         {
             // named parameter, these are also auto numbered
-            Query.AddNamedParameter(tokens[index].Value, tokens[index]);
+            Query!.AddNamedParameter(tokens[index].Value, tokens[index]);
             index++;
             return true;
         }
@@ -267,7 +301,7 @@ public class ExpressionParser : Parser
         return false;
     }
 
-    bool ParseFunction(ref int index, Span<Token> tokens, Table table)
+    bool ParseFunction(ref int index, Span<Token> tokens, Table? table)
     {
         AssertEnoughTokens(tokens, index);
         if (tokens[index].TokenType != TokenType.Other)
@@ -351,7 +385,7 @@ public class ExpressionParser : Parser
 
     }
 
-    bool ParseOverClause(ref int index, Span<Token> tokens, Table table)
+    bool ParseOverClause(ref int index, Span<Token> tokens, Table? table)
     {
         if (index >= tokens.Length)
         {
@@ -423,7 +457,7 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    bool PrasePartitionBy(ref int index, Span<Token> tokens, Table table)
+    bool PrasePartitionBy(ref int index, Span<Token> tokens, Table? table)
     {
         if (tokens.GetValue(index) != "partition")
         {
@@ -437,7 +471,8 @@ public class ExpressionParser : Parser
         Increment(ref index, 1, tokens);
         while (true)
         {
-            if (!Parse(ref index, tokens, table))
+            var expression = Parse(ref index, tokens, table);
+            if (expression == null)
             {
                 throw new InvalidSqlException("Expected expr", tokens[index]);
             }
@@ -449,7 +484,7 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    void ParseBetween(ref int index, Span<Token> tokens, Table table)
+    void ParseBetween(ref int index, Span<Token> tokens, Table? table)
     {
         if (tokens.GetValue(index) != "between")
         {
@@ -469,7 +504,8 @@ public class ExpressionParser : Parser
                 Increment(ref index, 1, tokens);
                 break;
             default:
-                if (!Parse(ref index, tokens, table))
+                var expression = Parse(ref index, tokens, table);
+                if (expression == null)
                 {
                     throw new InvalidSqlException("Expected expr", tokens[index]);
                 }
@@ -493,7 +529,8 @@ public class ExpressionParser : Parser
                 Increment(ref index, 1, tokens);
                 break;
             default:
-                if (!Parse(ref index, tokens, table))
+                var expression = Parse(ref index, tokens, table);
+                if (expression == null)
                 {
                     throw new InvalidSqlException("Expected expr", tokens[index]);
                 }
@@ -510,7 +547,7 @@ public class ExpressionParser : Parser
         return values.Contains(value);
     }
 
-    bool ParseFrameSpec(ref int index, Span<Token> tokens, Table table)
+    bool ParseFrameSpec(ref int index, Span<Token> tokens, Table? table)
     {
         if (index >= tokens.Length)
         {
@@ -546,7 +583,8 @@ public class ExpressionParser : Parser
                 Increment(ref index, 1, tokens);
                 break;
             default:
-                if (!Parse(ref index, tokens, table))
+                var expression = Parse(ref index, tokens, table);
+                if (expression == null)
                 {
                     throw new InvalidSqlException("Expected expr", tokens[index]);
                 }
@@ -593,7 +631,7 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    bool ParseOrderBy(ref int index, Span<Token> tokens, Table table)
+    bool ParseOrderBy(ref int index, Span<Token> tokens, Table? table)
     {
         if (tokens.GetValue(index) != "order")
         {
@@ -619,9 +657,10 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    bool ParseOrderingTerm(ref int index, Span<Token> tokens, Table table)
+    bool ParseOrderingTerm(ref int index, Span<Token> tokens, Table? table)
     {
-        if (!Parse(ref index, tokens, table))
+        var expression = Parse(ref index, tokens, table);
+        if (expression == null)
         {
             return false;
         }
@@ -648,7 +687,7 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    bool ParseFilterClause(ref int index, Span<Token> tokens, Table table)
+    bool ParseFilterClause(ref int index, Span<Token> tokens, Table? table)
     {
         if (index >= tokens.Length)
         {
@@ -671,7 +710,8 @@ public class ExpressionParser : Parser
         }
 
         Increment(ref index, 1, tokens);
-        if (!Parse(ref index, tokens, table))
+        var expression = Parse(ref index, tokens, table);
+        if (expression == null)
         {
             throw new InvalidSqlException("Expected expr", tokens[index]);
         }
@@ -684,31 +724,31 @@ public class ExpressionParser : Parser
         return true;
     }
 
-    bool ParseExpr(ref int index, Span<Token> tokens, Table table)
+    Expression? ParseExpr(ref int index, Span<Token> tokens, Table? table)
     {
         if (_literalValueParser.Parse(ref index, tokens))
         {
-            return true;
+            return new Expression();
         }
 
         if (ParseBindParam(ref index, tokens, table))
         {
-            return true;
+            return new Expression();
         }
 
         if (ParseFunction(ref index, tokens, table))
         {
-            return true;
+            return new Expression();
         }
 
         switch (tokens.GetValue(index))
         {
             case "cast":
                 ParseCastStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "exists":
                 PraseExistsStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "(":
                 // could be select statement or and expression list
                 Increment(ref index, 1, tokens);
@@ -717,17 +757,17 @@ public class ExpressionParser : Parser
                     ParseSelectStatement(ref index, tokens, table);
                     Expect(index, tokens, ")");
                     index++;
-                    return true;
+                    return new Expression();
                 }
                 index--;
                 ParseExprList(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "case":
                 ParseCaseStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "raise":
                 ParseRaiseStatement(ref index, tokens, table);
-                return true;
+                return new Expression();
             case "~":
             case "-":
             case "+":
@@ -736,12 +776,11 @@ public class ExpressionParser : Parser
                 return Parse(ref index, tokens, table);
             default:
                 //column identifier
-                ParseColumnIdentifier(ref index, tokens, table);
-                return true;
+                return ParseColumnIdentifier(ref index, tokens, table);
         }
     }
 
-    void ParseRaiseStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseRaiseStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "raise");
         Increment(ref index, 1, tokens);
@@ -773,7 +812,7 @@ public class ExpressionParser : Parser
         }
     }
 
-    void ParseCaseStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseCaseStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "case");
         Increment(ref index, 1, tokens);
@@ -785,13 +824,15 @@ public class ExpressionParser : Parser
         {
             Expect(index, tokens, "when");
             Increment(ref index, 1, tokens);
-            if (!Parse(ref index, tokens, table))
+            var expression = Parse(ref index, tokens, table);
+            if (expression == null)
             {
                 throw new InvalidSqlException("Expected expression", tokens[index]);
             }
             Expect(index, tokens, "then");
             Increment(ref index, 1, tokens);
-            if (!Parse(ref index, tokens, table))
+            expression = Parse(ref index, tokens, table);
+            if (expression == null)
             {
                 throw new InvalidSqlException("Expected expression", tokens[index]);
             }
@@ -804,7 +845,8 @@ public class ExpressionParser : Parser
         if (tokens.GetValue(index) == "else")
         {
             Increment(ref index, 1, tokens);
-            if (!Parse(ref index, tokens, table))
+            var expression = Parse(ref index, tokens, table);
+            if (expression == null)
             {
                 throw new InvalidSqlException("Expected expression", tokens[index]);
             }
@@ -814,14 +856,14 @@ public class ExpressionParser : Parser
         index++;
     }
 
-    void PraseExistsStatement(ref int index, Span<Token> tokens, Table table)
+    void PraseExistsStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "exists");
         Increment(ref index, 1, tokens);
         ParseBracketsSelectStatement(ref index, tokens, table);
     }
 
-    void ParseBracketsSelectStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseBracketsSelectStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "(");
         Increment(ref index, 1, tokens);
@@ -830,7 +872,7 @@ public class ExpressionParser : Parser
         index++;
     }
 
-    void ParseCastStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseCastStatement(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "cast");
         Increment(ref index, 1, tokens);
@@ -845,7 +887,7 @@ public class ExpressionParser : Parser
         return;
     }
 
-    void ParseExprList(ref int index, Span<Token> tokens, Table table)
+    void ParseExprList(ref int index, Span<Token> tokens, Table? table)
     {
         Expect(index, tokens, "(");
         Increment(ref index, 1, tokens);
@@ -863,12 +905,12 @@ public class ExpressionParser : Parser
         }
     }
 
-    void ParseSelectStatement(ref int index, Span<Token> tokens, Table table)
+    void ParseSelectStatement(ref int index, Span<Token> tokens, Table? table)
     {
         throw new NotImplementedException("Select will be implemented after create table");
     }
 
-    void ParseColumnIdentifier(ref int index, Span<Token> tokens, Table table)
+    Expression ParseColumnIdentifier(ref int index, Span<Token> tokens, Table? table)
     {
         int start = index;
         var firstPart = tokens.GetValue(index);
@@ -877,12 +919,16 @@ public class ExpressionParser : Parser
         {
             //column only
             var value = tokens.GetValue(index);
-            if (!table.Columns.Any(column => column.SqlName.ToLowerInvariant() == firstPart))
+            if (table != null && !table.Columns.Any(column => column.SqlName.ToLowerInvariant() == firstPart))
             {
                 throw new InvalidSqlException($"Column '{firstPart}' doesn't exist in the current table", tokens[index]);
             }
             index++;
-            return;
+            return new Expression()
+            {
+                ExpressionType = ExpressionType.Column,
+                ColumnName = value
+            };
         }
         Increment(ref index, 1, tokens);
         if (tokens.GetValue(index) != ".")
@@ -910,7 +956,12 @@ public class ExpressionParser : Parser
                 throw new InvalidSqlException("Table doesn't contain referenced column", tokens[start + 2]);
             }
             index++;
-            return;
+            return new Expression()
+            {
+                ExpressionType = ExpressionType.Column,
+                ColumnName = secondPart,
+                TableName = firstPart
+            };
         }
 
         // its a three parter which includes schema-name which we don't support

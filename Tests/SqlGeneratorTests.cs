@@ -230,7 +230,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Table already has a primary key"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(56));
         }
     }
@@ -253,7 +253,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Invalid column constraint, did you mean 'primary key'?"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(32));
         }
     }
@@ -276,7 +276,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Column name Name already exists in this table"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(33));
         }
     }
@@ -349,7 +349,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Did you mean 'if not exists'?"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
         }
     }
@@ -372,7 +372,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("Attached databases are not supported"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(13));
         }
     }
@@ -410,8 +410,8 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("as is not currently supported"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
-            Assert.That(exception.Token.CharacterInLine, Is.EqualTo(23));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.CharacterInLine, Is.EqualTo(23));
         }
     }
 
@@ -500,7 +500,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo(expectedMessage));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(characterInLine));
         }
     }
@@ -567,7 +567,7 @@ public class SqlGeneratorTests
         catch (InvalidSqlException exception)
         {
             Assert.That(exception.Message, Is.EqualTo("AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY"));
-            Assert.That(exception.Token.Line, Is.EqualTo(0));
+            Assert.That(exception.Token!.Line, Is.EqualTo(0));
             Assert.That(exception.Token.CharacterInLine, Is.EqualTo(46));
         }
     }
