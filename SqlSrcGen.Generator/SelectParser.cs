@@ -173,7 +173,7 @@ public class SelectParser : Parser
         queryInfo.AddColumnsGenerator(tables =>
         {
             var columns = new List<Column>();
-            if (expression.TableName != "")
+            if (string.IsNullOrEmpty(expression.TableName))
             {
                 foreach (var table in tables)
                 {
@@ -186,6 +186,22 @@ public class SelectParser : Parser
                                 throw new InvalidSqlException("Ambiguous column name", token);
                             }
                             columns.Add(column);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var table in tables)
+                {
+                    if (table.Item2.SqlName.ToLowerInvariant() == expression.TableName?.ToLowerInvariant())
+                    {
+                        foreach (var column in table.Item2.Columns)
+                        {
+                            if (column.SqlName.ToLowerInvariant() == expression.ColumnName?.ToLowerInvariant())
+                            {
+                                columns.Add(column);
+                            }
                         }
                     }
                 }

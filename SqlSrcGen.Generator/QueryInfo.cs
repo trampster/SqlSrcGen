@@ -47,7 +47,7 @@ public class QueryInfo
             }
         }
 
-        //Fixup duplicate csharnames
+        //Fixup duplicate CSharp names
         for (int index = 0; index < Columns.Count; index++)
         {
             var column = Columns[index];

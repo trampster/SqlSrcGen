@@ -237,4 +237,73 @@ public class StarColumnsTests
         Assert.That(queryInfo.Columns[1].SqlName, Is.EqualTo("age"));
         Assert.That(queryInfo.Columns[1].CSharpName, Is.EqualTo("Age"));
     }
+
+    [Test]
+    public void Select_AmbiguousColumn_InvalidSqlException()
+    {
+        // arrange
+        var contactTable = new Table { SqlName = "contact" };
+        contactTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        contactTable.AddColumn(new Column() { SqlName = "email", CSharpName = "Email" });
+        contactTable.AddColumn(new Column() { SqlName = "age", CSharpName = "Age" });
+        _databaseInfo.Tables.Add(contactTable);
+
+        var jobTable = new Table { SqlName = "job" };
+        jobTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        jobTable.AddColumn(new Column() { SqlName = "salary", CSharpName = "Salary" });
+        _databaseInfo.Tables.Add(jobTable);
+
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize("SELECT name FROM contact, job").ToArray().AsSpan();
+        int index = 0;
+        var queryInfo = new QueryInfo();
+
+        // act
+        try
+        {
+            _selectParser.Parse(ref index, tokens, queryInfo);
+            queryInfo.Process();
+
+            // assert
+            Assert.Fail("InvalidSqlException didn't occur");
+        }
+        catch (InvalidSqlException exception)
+        {
+            Assert.That(exception.Message, Is.EqualTo("Ambiguous column name"));
+            Assert.That(exception.Token!.Position, Is.EqualTo(7));
+        }
+    }
+
+    [Test]
+    public void Select_FullyQualifiedColumns_CorrectColumns()
+    {
+        // arrange
+        var contactTable = new Table { SqlName = "contact", CSharpName = "Contact" };
+        contactTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        contactTable.AddColumn(new Column() { SqlName = "email", CSharpName = "Email" });
+        contactTable.AddColumn(new Column() { SqlName = "age", CSharpName = "Age" });
+        _databaseInfo.Tables.Add(contactTable);
+
+        var jobTable = new Table { SqlName = "job", CSharpName = "Job" };
+        jobTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        jobTable.AddColumn(new Column() { SqlName = "salary", CSharpName = "Salary" });
+        _databaseInfo.Tables.Add(jobTable);
+
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize("SELECT contact.name, job.name, salary FROM contact, job").ToArray().AsSpan();
+        int index = 0;
+        var queryInfo = new QueryInfo();
+
+        // act
+        _selectParser.Parse(ref index, tokens, queryInfo);
+        queryInfo.Process();
+
+        // assert
+        Assert.That(queryInfo.Columns[0].SqlName, Is.EqualTo("name"));
+        Assert.That(queryInfo.Columns[0].CSharpName, Is.EqualTo("ContactName"));
+        Assert.That(queryInfo.Columns[1].SqlName, Is.EqualTo("name"));
+        Assert.That(queryInfo.Columns[1].CSharpName, Is.EqualTo("JobName"));
+        Assert.That(queryInfo.Columns[2].SqlName, Is.EqualTo("salary"));
+        Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("Salary"));
+    }
 }
