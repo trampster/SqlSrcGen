@@ -164,12 +164,29 @@ public class SelectParser : Parser
             Increment(ref index, 1, tokens);
             return;
         }
-        var token = tokens[index];
+        var columnIdentifierToken = tokens[index];
         var expression = _expressionParser.Parse(ref index, tokens, null);
         if (expression == null || expression.ExpressionType != ExpressionType.Column)
         {
-            throw new InvalidSqlException("Expected column identifier", token);
+            throw new InvalidSqlException("Expected column identifier", columnIdentifierToken);
         }
+        string? alias = null;
+        if (tokens.GetValue(index) == "as")
+        {
+            Increment(ref index, 1, tokens);
+            if (tokens[index].TokenType != TokenType.Other)
+            {
+                throw new InvalidSqlException("Expected column alias", tokens[index]);
+            }
+            alias = tokens[index].Value;
+        }
+
+        if (tokens[index].TokenType == TokenType.Other)
+        {
+            alias = tokens[index].Value;
+            index++;
+        }
+
         queryInfo.AddColumnsGenerator(tables =>
         {
             var columns = new List<Column>();
@@ -183,9 +200,9 @@ public class SelectParser : Parser
                         {
                             if (columns.Count() != 0)
                             {
-                                throw new InvalidSqlException("Ambiguous column name", token);
+                                throw new InvalidSqlException("Ambiguous column name", columnIdentifierToken);
                             }
-                            columns.Add(column);
+                            columns.Add(AliasColumn(column, alias));
                         }
                     }
                 }
@@ -200,7 +217,7 @@ public class SelectParser : Parser
                         {
                             if (column.SqlName.ToLowerInvariant() == expression.ColumnName?.ToLowerInvariant())
                             {
-                                columns.Add(column);
+                                columns.Add(AliasColumn(column, alias));
                             }
                         }
                     }
@@ -208,5 +225,14 @@ public class SelectParser : Parser
             }
             return columns;
         });
+    }
+
+    Column AliasColumn(Column column, string? alias)
+    {
+        if (alias == null)
+        {
+            return column;
+        }
+        return column with { SqlName = alias, CSharpName = CSharp.ToCSharpName(alias) };
     }
 }

@@ -306,4 +306,70 @@ public class StarColumnsTests
         Assert.That(queryInfo.Columns[2].SqlName, Is.EqualTo("salary"));
         Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("Salary"));
     }
+
+    [Test]
+    public void Select_QualifiedAliasedColumn_CorrectColumns()
+    {
+        // arrange
+        var contactTable = new Table { SqlName = "contact", CSharpName = "Contact" };
+        contactTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        contactTable.AddColumn(new Column() { SqlName = "email", CSharpName = "Email" });
+        contactTable.AddColumn(new Column() { SqlName = "age", CSharpName = "Age" });
+        _databaseInfo.Tables.Add(contactTable);
+
+        var jobTable = new Table { SqlName = "job", CSharpName = "Job" };
+        jobTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        jobTable.AddColumn(new Column() { SqlName = "salary", CSharpName = "Salary" });
+        _databaseInfo.Tables.Add(jobTable);
+
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize("SELECT contact.name as name1, job.name, salary FROM contact, job").ToArray().AsSpan();
+        int index = 0;
+        var queryInfo = new QueryInfo();
+
+        // act
+        _selectParser.Parse(ref index, tokens, queryInfo);
+        queryInfo.Process();
+
+        // assert
+        Assert.That(queryInfo.Columns[0].SqlName, Is.EqualTo("name1"));
+        Assert.That(queryInfo.Columns[0].CSharpName, Is.EqualTo("Name1"));
+        Assert.That(queryInfo.Columns[1].SqlName, Is.EqualTo("name"));
+        Assert.That(queryInfo.Columns[1].CSharpName, Is.EqualTo("Name"));
+        Assert.That(queryInfo.Columns[2].SqlName, Is.EqualTo("salary"));
+        Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("Salary"));
+    }
+
+    [Test]
+    public void Select_UnqualifiedAliasedColumn_CorrectColumns()
+    {
+        // arrange
+        var contactTable = new Table { SqlName = "contact", CSharpName = "Contact" };
+        contactTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        contactTable.AddColumn(new Column() { SqlName = "email", CSharpName = "Email" });
+        contactTable.AddColumn(new Column() { SqlName = "age", CSharpName = "Age" });
+        _databaseInfo.Tables.Add(contactTable);
+
+        var jobTable = new Table { SqlName = "job", CSharpName = "Job" };
+        jobTable.AddColumn(new Column() { SqlName = "name", CSharpName = "Name" });
+        jobTable.AddColumn(new Column() { SqlName = "salary", CSharpName = "Salary" });
+        _databaseInfo.Tables.Add(jobTable);
+
+        var tokenizer = new Tokenizer();
+        var tokens = tokenizer.Tokenize("SELECT age as oldness, job.name, salary FROM contact, job").ToArray().AsSpan();
+        int index = 0;
+        var queryInfo = new QueryInfo();
+
+        // act
+        _selectParser.Parse(ref index, tokens, queryInfo);
+        queryInfo.Process();
+
+        // assert
+        Assert.That(queryInfo.Columns[0].SqlName, Is.EqualTo("oldness"));
+        Assert.That(queryInfo.Columns[0].CSharpName, Is.EqualTo("Oldness"));
+        Assert.That(queryInfo.Columns[1].SqlName, Is.EqualTo("name"));
+        Assert.That(queryInfo.Columns[1].CSharpName, Is.EqualTo("Name"));
+        Assert.That(queryInfo.Columns[2].SqlName, Is.EqualTo("salary"));
+        Assert.That(queryInfo.Columns[2].CSharpName, Is.EqualTo("Salary"));
+    }
 }
