@@ -951,7 +951,7 @@ public class ExpressionParser : Parser
                 throw new InvalidSqlException("Table doesn't exist", tokens[start]);
             }
 
-            if (!referencedTable.Columns.Any(column => column.SqlName.ToLowerInvariant() == columnName))
+            if (columnName != "*" && !referencedTable.Columns.Any(column => column.SqlName.ToLowerInvariant() == columnName))
             {
                 throw new InvalidSqlException("Table doesn't contain referenced column", tokens[start + 2]);
             }
